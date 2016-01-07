@@ -7,7 +7,7 @@ This python based milter (mail-filter) checks an incoming mail for MS 200x Offic
 *The repo is optimized for Visual Studio*
 ## Features
 * Parsing VBA macros for suspicious code and function calls
-* Uses the milter interface at postfix and sentmail
+* Uses the milter interface at postfix and sendmail
 * Easy to implement
 * Not based on virus heuristics (high detection rate)
 * Only reject if a threshold is reached
