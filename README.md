@@ -16,7 +16,7 @@ This python based milter (mail-filter) checks an incoming mail for MS 200x Offic
 * Runns at the pre-queue at postfix
 
 ## Installation (Ubuntu with upstart)
-1. download the oletools (https://bitbucket.org/decalage/oletools) and pymilter (https://github.com/jmehnle/pymilter) packages
+1. download the oletools (https://bitbucket.org/decalage/oletools) and pymilter (https://pythonhosted.org/pymilter/) packages
 2. step through the following bash. In some cases, you need to edit paths or install some missing dependencies!
 ```bash
 # create files and folders
