@@ -14,6 +14,7 @@ This python based milter (mail-filter) checks an incoming mail for MS 200x Offic
 * Whitelisting
 * Creates a hashtable for allready scanned files (prevents rescans)
 * Runns at the pre-queue at postfix
+
 ## Dependencies
 This milter use the functionality from the oletools (https://bitbucket.org/decalage/oletools) and pymilter (https://pythonhosted.org/milter/) projects.
 
