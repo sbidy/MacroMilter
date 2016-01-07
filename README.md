@@ -3,6 +3,8 @@
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
 ## Abstract
 This python based milter (mail-filter) checks an incoming mail for MS 200x Office attachments (doc, xls, ppt). If a MS Office file is attached to the mail it will be scanned for suspicious VBA macro code. After the milter parsed the attachment a kind of risk level will be defined for that document. If the risk level reaches a defined value – the mail will be rejected to the sender.
+
+*The repo is optimized for Visual Studio*
 ## Features
 * Parsing VBA macros for suspicious code and function calls
 * Uses the milter interface at postfix and sentmail
