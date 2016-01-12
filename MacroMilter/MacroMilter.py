@@ -1,19 +1,11 @@
-## Macro Milter for postfix
-## 
-## https://github.com/jmehnle/pymilter/blob/master/milter-template.py
+## Macro Milter for postfix - https://github.com/sbidy/MacroMilter
 ##
 ## 1.4 - 15.12.2015 sbidy - Update comments, add hash-set for lookup and safe to persistent
 ## 1.5 - 16.12.2015 sbidy - Add date-time to performance log
 ## 1.6 - 16.12.2015 sbidy - Change to TCP Socket, Socket an timeout to global, update name to "MacroMilter", set_exception_policy to ACCEPT, fix timer bug for performance data
 ## 1.7 - 05.01.2016 sbidy - Adding Extensionlogging
 ## 1.8 - 07.01.2016 sbidy - Commit at github, add the privacy statement
-
-## - TBD - 
-##  1. put "write report and write hash-table" to a non blocking threads
-##  2. testing !!
-##	3. Bugfix for non MIME text mail
-##
-##
+## 1.9 - 12.01.2016 sbidy - Clean up the code - deleted the virus total function. Hive off to a separate project/milter
 
 # The MIT License (MIT)
 
@@ -56,11 +48,6 @@ from socket import AF_INET, AF_INET6
 from email.mime.text import MIMEText
 from Queue import Empty
 
-# Virustotal
-import urllib2
-import json
-import urllib
-
 from Milter.utils import parse_addr
 if True:
 	from multiprocessing import Process as Thread, Queue
@@ -76,25 +63,19 @@ REJECTLEVEL = 10 # Defines the max Macro Level (normal files < 10 // suspicious 
 # at postfix smtpd_milters = inet:127.0.0.1:3690
 SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
 TIMEOUT = 30 # Milter timeout in seconds
-# VirusTotal API key
-API_KEY = '1dcc4e894f455bda6beb9fcb7bdd5211d430dd76aa7a942b1e93e543d7dd5949'
-VIRUS_TRASHOLD = 3
-## --------
-
-## immutable state
-WhiteList = None
 
 ## buffer queues for inter-thread communication 
 logq = Queue(maxsize=4)
 performace_data = Queue(maxsize=4)
 extension_data = Queue(maxsize=4)
-hash_to_scan = Queue()
 hash_to_write = Queue(maxsize=4)
 hashtable = Set()
+## immutable state
+WhiteList = None
 
 ## Customized milter class - partly copied from
 ## https://github.com/jmehnle/pymilter/blob/master/milter-template.py
-## Documentation here
+
 class MacroMilter(Milter.Base):
 
 	def __init__(self):  # A new instance with each new connection.
@@ -170,7 +151,6 @@ class MacroMilter(Milter.Base):
 			self.log("Unexpected error - fall back to ACCEPT: %s" % sys.exc_value)
 			return Milter.ACCEPT
 		
-		
 	def close(self):
 	# stop timer at close
 		return Milter.CONTINUE
@@ -229,22 +209,12 @@ class MacroMilter(Milter.Base):
 				if hash_data in hashtable:
 					self.log("Attachment %s already parsed ! REJECT" % hash_data)
 					return Milter.REJECT
-				
-				# Needed for the virtustotal function - not used 
-				# add hash to scan queues
-				#if filename.lower().endswith(".zip"):
-				#	self.genMD5fromZipFile(data)
-				#else:
-				#	self.addHash(hash_data)
-				
+
 				# sent to VBA parser
 				report = self.doc_parsing(filename, data)
 				self.log("VBA parsing exit")
 				# Save File to disk and return reject because attachment had vba Macro
-				if report is not None:
-					# Save call - maybe bottleneck
-					# open(filename, 'wb').write(attachment.get_payload(decode=True))
-					
+				if report is not None:				
 					# generate report for logfile >> <filename>.<extenstion>.log
 					report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
 					# change dir for log
@@ -262,12 +232,11 @@ class MacroMilter(Milter.Base):
 						hash_to_write.put(hash_data)
 						self.log("Message rejected with Level: %d" % (self.level))
 						self.log("File Added %s" % hash_data)
-					
 						report = None
 						return Milter.REJECT
 					# if level is lower than configured
 					else:
-						self.log("Message not rejected with Level: %d - under configured threshold" % (self.level))
+						self.log("Message accepted with Level: %d - under configured threshold" % (self.level))
 						report = None
 						return Milter.ACCEPT
 				else:
@@ -281,7 +250,7 @@ class MacroMilter(Milter.Base):
 				
 	def check_name(self, sender):
 		'''
-			Lookup if the sender is at the whitelist - @domains.com must be supportered
+			Lookup if the sender is at the whitelist - @domains.com must be supported
 		'''
 		for name in WhiteList:
 			if re.search(name,sender) and not name.startswith("#"): return True
@@ -345,69 +314,13 @@ class MacroMilter(Milter.Base):
 		logq.put((msg,self.id,time.time()))
 	def addData(self, *data):
 		performace_data.put(data,self.level)
-	def addHash(self, *hash_data):
-		hash_to_scan.put(hash_data)
-	def genMD5fromZipFile(slef, input_zip):
-		hash = hashlib.md5()
-		file = zipfile.ZipFile(input_zip)
-		hash.update(file.read())
-		print hash
-		hash_to_scan.put(hash.hexdigest())
 	def addExData(self, *data):
 		extension_data.put(data)
 
 ## ===== END CLASS ========
 
 
-
 ## ==== start MAIN ========
-def totalViruscheck():
-		'''
-			Function not used. 
-		'''
-		url = "https://www.virustotal.com/vtapi/v2/file/report"
-		total = 0
-		hash = ''
-		while True:
-			# get max 10 items from Queue
-			hash_value = _queue_get_all(hash_to_scan)
-			if hash_value:
-				# start request
-				hash_value = ", ".join(hash_value)
-				parameters = {"resource": hash_value,"apikey": API_KEY}
-				print parameters
-				data = urllib.urlencode(parameters)
-				req = urllib2.Request(url, data)
-				response = urllib2.urlopen(req)
-				json_data = response.read()
-				response_dict = json.loads(json_data)
-				# check if the request had multiple recourses
-				if isinstance(response_dict, list):
-					for item in response_dict:    
-						total = item.get('positives')
-						if total > 3 and not None:
-							print "%s [SYSTEM] - Hash Added with VirusTotal count %i - MD5 %s" % (time.strftime('%d.%m.%Y %H:%M:%S'),total,item.get('md5'))
-							hash_to_write.put(item.get('md5'))
-				else:
-					total = response_dict.get('positives')
-					if total > VIRUS_TRASHOLD and not None:
-							print "%s [SYSTEM] - Hash Added with VirusTotal count %i - MD5 %s" % (time.strftime('%d.%m.%Y %H:%M:%S'),total,response_dict.get('md5'))
-							hash_to_write.put(response_dict.get('md5'))
-				# sleep for 17 secs (only 4 request per minute)
-				time.sleep(17)
-
-def _queue_get_all(q):
-	items = []
-	maxItemsToRetreive = 10
-	for numOfItemsRetrieved in range(0, maxItemsToRetreive):
-		try:
-			if numOfItemsRetrieved == maxItemsToRetreive:
-				break
-			items.append("%s" % q.get_nowait())
-		except Empty:
-			break
-	return items
-
 def writehashtofile():
 	'''
 		Write the hash to db file
@@ -431,13 +344,12 @@ def writeExData():
 
 def background():
 	'''
-		Write the logging informations to run.log
+		Write the logging informations to stdout
 	'''
 	while True:
 		t = logq.get()
 		if not t: break
 		msg,id,ts = t
-		# 2005Oct13 02:34:11 [1] msg1 msg2 msg3 ...
 		for i in msg:
 			text = "%s [%d] - %s" % (time.strftime('%d.%m.%y %H:%M:%S',time.localtime(ts)),id, i)
 			print text
@@ -482,7 +394,6 @@ def main():
 	# create helper threads
 	bt = Thread(target=background)
 	perft = Thread(target=writeperformacedata)
-	#vir = Thread(target=totalViruscheck)
 	ha = Thread(target=writehashtofile)
 	ex = Thread(target=writeExData)
 
@@ -491,7 +402,6 @@ def main():
 	perft.start()
 	bt.start()
 	ha.start()
-	#vir.start()
 
 	# Register to have the Milter factory create instances of the class:
 	Milter.factory = MacroMilter
@@ -511,7 +421,6 @@ def main():
 	# wait for helper threads
 	bt.join() # stop logging thread
 	perft.join() # stop performance data thread
-	#vir.join() # stop virustotal thread
 	ha.join() # stop hash data thread
 	ex.join() # stop filename thread - obsolete - delete in next version
 
@@ -520,7 +429,6 @@ def main():
 	extension_data.put(None)
 	hash_to_scan.put(None)
 	performace_data.put(None)
-	#hash_to_write.put(None)
 
 	print "%s Macro milter shutdown" % time.strftime('%d.%b.%Y %H:%M:%S')
 	
