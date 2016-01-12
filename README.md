@@ -3,9 +3,11 @@
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
 ## Abstract
 This python based milter (mail-filter) checks an incoming mail for MS 200x Office attachments (doc, xls, ppt). If a MS Office file is attached to the mail it will be scanned for suspicious VBA macro code. After the milter parsed the attachment a kind of risk level will be defined for that document. If the risk level reaches a defined value – the mail will be rejected to the sender.
+
+*The repo is optimized for Visual Studio*
 ## Features
 * Parsing VBA macros for suspicious code and function calls
-* Uses the milter interface at postfix and sentmail
+* Uses the milter interface at postfix and sendmail
 * Easy to implement
 * Not based on virus heuristics (high detection rate)
 * Only reject if a threshold is reached
@@ -13,8 +15,11 @@ This python based milter (mail-filter) checks an incoming mail for MS 200x Offic
 * Creates a hashtable for allready scanned files (prevents rescans)
 * Runns at the pre-queue at postfix
 
+## Dependencies
+This milter use the functionality from the oletools (https://bitbucket.org/decalage/oletools) and pymilter (https://pythonhosted.org/milter/) projects.
+
 ## Installation (Ubuntu with upstart)
-1. download the oletools (https://bitbucket.org/decalage/oletools) and pymilter (https://github.com/jmehnle/pymilter) packages
+1. download the oletools (https://bitbucket.org/decalage/oletools) and pymilter (https://pythonhosted.org/milter/) packages
 2. step through the following bash. In some cases, you need to edit paths or install some missing dependencies!
 ```bash
 # create files and folders
@@ -58,23 +63,5 @@ Stephan Traub - Sbidy -> https://github.com/sbidy
 
 ## License
 The MIT License (MIT)
-
 Copyright (c) 2016 Stephan Traub - audius GmbH, www.audius.de
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
- 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
