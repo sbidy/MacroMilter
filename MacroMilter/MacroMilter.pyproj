@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>15628f71-c607-4ae4-8167-68eb50a18409</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>MacroMilter.py</StartupFile>
+    <StartupFile>macromilter.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,7 +22,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="MacroMilter.py" />
+    <Compile Include="macromilter.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="MacroMilter.conf" />
