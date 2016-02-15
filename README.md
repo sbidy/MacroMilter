@@ -27,33 +27,30 @@ This milter use the functionality from the oletools (https://bitbucket.org/decal
 mkdir /etc/macromilter
 mkdir /etc/macromilter/log
 # only needed for a chroot env
-mkdir /var/spool/postfix/etc/milter
-touch /etc/macromilter/whitelist.list
-
-# setup upstart config
-cp MacroMilter.conf /etc/init/
-initctl reload-configuration
+# mkdir /var/spool/postfix/etc/milter
 
 # install macromilter dependencies
 apt-get update
-apt-get install python2.7 python2.7-dev libmilter-dev libmilter1.0.1
+apt-get install python2.7 python2.7-dev libmilter-dev libmilter1.0.1 python-pip
 
 # install oletools
-tar -zxvf oletools-0.41.tar.gz
-cd oletools-0.41
-python setup.py install
+pip install oletools
 
 # install pymilter --> maybe you need some addtional dependencies - see doc
-tar -zxvf pymilter-1.0.tar.gz
-cd pymilter-1.0
-python setup.py install
+pip install pymilter
 
+# copy the python script
 cp macromilter.py /etc/macromilter/
+# setup upstart config
+cp MacroMilter.conf /etc/init/
+initctl reload-configuration
+# create the whitelist
+touch /etc/macromilter/whitelist.list
 
 # set chown for postfix
 chown postfix:postfix -R /etc/macromilter
 # only needed if you run the milter at chroot an with a linux-socket
-chown postfix:postfix -R /var/spool/postfix/etc/milter 
+# chown postfix:postfix -R /var/spool/postfix/etc/milter 
 
 # start and check
 service MacroMilter start
