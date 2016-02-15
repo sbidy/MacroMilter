@@ -217,7 +217,7 @@ class MacroMilter(Milter.Base):
 					# check if file is already parsed
 					if hash_data in hashtable:
 						self.log("Attachment %s already parsed ! REJECT" % hash_data)
-						macro_flag = True
+						macro_flag = True # reject
 
 					# sent to VBA parser
 					report = self.doc_parsing(filename, data)
@@ -242,19 +242,22 @@ class MacroMilter(Milter.Base):
 							self.log("Message rejected with Level: %d" % (self.level))
 							self.log("File Added %s" % hash_data)
 							report = None
-							macro_flag = True
+							macro_flag = True # reject
 						# if level is lower than configured
 						else:
 							self.log("Message accepted with Level: %d - under configured threshold" % (self.level))
 							report = None
-							macro_flag = False
+							if not macro_flag:
+								macro_flag = False
 					else:
 						# report is none = no macro found in file
-						macro_flag = False
+						if not macro_flag:
+							macro_flag = False
 						report = None
 			else:
 				# Filename can be read !!!  Fall back to accept
-				macro_flag = False
+				if not macro_flag:
+					macro_flag = False
 				report = None
 			# inc 1 - loop walk
 			i = i + 1
