@@ -7,6 +7,7 @@
 ## 1.8 - 07.01.2016 sbidy - Commit at github, add the privacy statement
 ## 1.9 - 12.01.2016 sbidy - Clean up the code - deleted the virus total function. Hive off to a separate project/milter
 ## 2.0 - 12.01.2016 sbidy - Add spam header "X-Spam-Flag" to yes for a non-MIME Message
+## 2.1 - 15.02.2016 sbidy - Fix multi attachment bug, now parses multible attachments
 
 # The MIT License (MIT)
 
@@ -59,7 +60,7 @@ else:
 
 ## Config (finals)
 FILE_EXTENSTION = ('.ppt', '.xls', '.doc', '.zip') # lower letter !! 
-__version__ = '2.0' # version
+__version__ = '2.1' # version
 REJECTLEVEL = 10 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 # at postfix smtpd_milters = inet:127.0.0.1:3690
 SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
@@ -166,6 +167,7 @@ class MacroMilter(Milter.Base):
 		'''
 			parse the whole email data an check if there is a attachment
 		'''
+		macro_flag = False
 		# use the email 
 		msg = email.message_from_string(data.getvalue())
 		# Set Reject Message - definition from here
@@ -176,82 +178,93 @@ class MacroMilter(Milter.Base):
 		if len(msg.get_payload()) < 2:
 			return Milter.ACCEPT
 		# if attachment get name
-		try:
-			attachment = msg.get_payload()[1]
-			filename = attachment.get_filename()
-		except Exception, a:
-			self.log("Cant read the attachment - we guess it is SPAM ! Let SpamFilter check -> ACCEPT")
-			# Set spam level
-			self.addheader("X-Spam-Flag","YES",self.headcount+1)
-			# set flag to CONTINUE -> ACCEPT ??
-			return Milter.CONTINUE
 		
-		# additional check if filename exists
-		if filename is not None:
-			# write extension to file
-			# Get sender name <SENERNAME>
-			msg_from = re.findall('<([^"]*)>', msg['From'])
-			# write the file extension to log --> DEBUG - remove or activate as arg. flag
-			self.writeFileExtension(filename,msg_from, attachment.get_payload(decode=True))
+		i = 1
+		while len(msg.get_payload()) > i:
+			try:
+				attachment = msg.get_payload()[i]
+				filename = attachment.get_filename()
+			except Exception, a:
+				self.log("Cant read the attachment - we guess it is SPAM ! Let SpamFilter check -> ACCEPT")
+				# Set spam level
+				self.addheader("X-Spam-Flag","YES",self.headcount+1)
+				# set flag to CONTINUE -> ACCEPT ??
+				return Milter.CONTINUE
+			# additional check if filename exists
+			if filename is not None:
+				# write extension to file
+				# Get sender name <SENERNAME>
+				msg_from = re.findall('<([^"]*)>', msg['From'])
+				# write the file extension to log --> DEBUG - remove or activate as arg. flag
+				self.writeFileExtension(filename,msg_from, attachment.get_payload(decode=True))
+				# walk throught the attachments
+			
+				# parse the data if it is search extension
+				if (filename.lower().endswith(FILE_EXTENSTION)):
 
-			# parse the data if it is search extension
-			if (filename.lower().endswith(FILE_EXTENSTION)):
-
-				self.log("Find Attachment with extension - File content type: %s - File name: %s" % (attachment.get_content_type(),attachment.get_filename()))
-				# check sender name and return if at the whitelist
-				#if len(set(msg_from).intersection(WhiteList)) > 0:
-				if self.check_name(str(msg_from)):
-					self.log("Whitelisted user %s - accept all attachments" % (msg_from))
-					report = None
-					return Milter.ACCEPT
-						
-				# if sender is not whitelisted
-				data = attachment.get_payload(decode=True)
-				# generate Hash from file
-				hash_data = hashlib.md5(data).hexdigest()
-				# check if file is already parsed
-				if hash_data in hashtable:
-					self.log("Attachment %s already parsed ! REJECT" % hash_data)
-					return Milter.REJECT
-
-				# sent to VBA parser
-				report = self.doc_parsing(filename, data)
-				self.log("VBA parsing exit")
-				# Save File to disk and return reject because attachment had vba Macro
-				if report is not None:				
-					# generate report for logfile >> <filename>.<extenstion>.log
-					report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
-					# change dir for log
-					os.chdir('./log')
-					# write log
-					filename = filename + '.log'
-					open(filename,'w').write(report)
-					# change dir back
-					os.chdir('..')
+					self.log("Find Attachment with extension - File content type: %s - File name: %s" % (attachment.get_content_type(),attachment.get_filename()))
+					# check sender name and return if at the whitelist
+					#if len(set(msg_from).intersection(WhiteList)) > 0:
+					if self.check_name(str(msg_from)):
+						self.log("Whitelisted user %s - accept all attachments" % (msg_from))
+						report = None
+						macro_flag = False
 					
-					# check if reject level is reached
-					if self.level > REJECTLEVEL:
-						# REJECT message and add to db file and memory
-						hashtable.add(hash_data)
-						hash_to_write.put(hash_data)
-						self.log("Message rejected with Level: %d" % (self.level))
-						self.log("File Added %s" % hash_data)
-						report = None
-						return Milter.REJECT
-					# if level is lower than configured
+					# if sender is not whitelisted
+					data = attachment.get_payload(decode=True)
+					# generate Hash from file
+					hash_data = hashlib.md5(data).hexdigest()
+					# check if file is already parsed
+					if hash_data in hashtable:
+						self.log("Attachment %s already parsed ! REJECT" % hash_data)
+						macro_flag = True
+
+					# sent to VBA parser
+					report = self.doc_parsing(filename, data)
+					self.log("VBA parsing exit")
+					# Save File to disk and return reject because attachment had vba Macro
+					if report is not None:				
+						# generate report for logfile >> <filename>.<extenstion>.log
+						report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
+						# change dir for log
+						os.chdir('./log')
+						# write log
+						filename = filename + '.log'
+						open(filename,'w').write(report)
+						# change dir back
+						os.chdir('..')
+
+						# check if reject level is reached
+						if self.level > REJECTLEVEL:
+							# REJECT message and add to db file and memory
+							hashtable.add(hash_data)
+							hash_to_write.put(hash_data)
+							self.log("Message rejected with Level: %d" % (self.level))
+							self.log("File Added %s" % hash_data)
+							report = None
+							macro_flag = True
+						# if level is lower than configured
+						else:
+							self.log("Message accepted with Level: %d - under configured threshold" % (self.level))
+							report = None
+							macro_flag = False
 					else:
-						self.log("Message accepted with Level: %d - under configured threshold" % (self.level))
+						# report is none = no macro found in file
+						macro_flag = False
 						report = None
-						return Milter.ACCEPT
-				else:
-					# report is none = no macro found in file
-					report = None
-					return Milter.ACCEPT
 			else:
 				# Filename can be read !!!  Fall back to accept
+				macro_flag = False
 				report = None
-				return Milter.ACCEPT
-				
+			# inc 1 - loop walk
+			i = i + 1
+
+		if not macro_flag :
+			# Nothing found 
+			return Milter.ACCEPT
+		if macro_flag:
+			return Milter.REJECT
+
 	def check_name(self, sender):
 		'''
 			Lookup if the sender is at the whitelist - @domains.com must be supported
