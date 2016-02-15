@@ -1,6 +1,7 @@
-# MacroMilter
-## Help wanted
+## Contributing
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
+
+To contribute, please fork this repository and make pull requests to the develop branch.
 ## Abstract
 This python based milter (mail-filter) checks an incoming mail for MS 200x Office attachments (doc, xls, ppt). If a MS Office file is attached to the mail it will be scanned for suspicious VBA macro code. After the milter parsed the attachment a kind of risk level will be defined for that document. If the risk level reaches a defined value – the mail will be rejected to the sender.
 
@@ -26,38 +27,38 @@ This milter use the functionality from the oletools (https://bitbucket.org/decal
 mkdir /etc/macromilter
 mkdir /etc/macromilter/log
 # only needed for a chroot env
-mkdir /var/spool/postfix/etc/milter
-touch /etc/macromilter/whitelist.list
-
-# setup upstart config
-cp MacroMilter.conf /etc/init/
-initctl reload-configuration
+# mkdir /var/spool/postfix/etc/milter
 
 # install macromilter dependencies
 apt-get update
-apt-get install python2.7 python2.7-dev libmilter-dev libmilter1.0.1
+apt-get install python2.7 python2.7-dev libmilter-dev libmilter1.0.1 python-pip
 
 # install oletools
-tar -zxvf oletools-0.41.tar.gz
-cd oletools-0.41
-python setup.py install
+pip install oletools
 
 # install pymilter --> maybe you need some addtional dependencies - see doc
-tar -zxvf pymilter-1.0.tar.gz
-cd pymilter-1.0
-python setup.py install
+pip install pymilter
 
+# copy the python script
 cp macromilter.py /etc/macromilter/
+# setup upstart config
+cp MacroMilter.conf /etc/init/
+initctl reload-configuration
+# create the whitelist
+touch /etc/macromilter/whitelist.list
 
 # set chown for postfix
 chown postfix:postfix -R /etc/macromilter
 # only needed if you run the milter at chroot an with a linux-socket
-chown postfix:postfix -R /var/spool/postfix/etc/milter 
+# chown postfix:postfix -R /var/spool/postfix/etc/milter 
 
 # start and check
 service MacroMilter start
 tail /var/log/syslog
 ```
+## User whitelist
+To allow a user or domain to send VAB-Macro-Mails enter only the user mail adress (xyz@domain.com) or the whole domain (@domain.com) in the whitelist.list file. Only one entry per line.
+
 ## Authors
 Stephan Traub - Sbidy -> https://github.com/sbidy
 
