@@ -26,6 +26,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="MacroMilter.conf" />
+    <Content Include="update.sh" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
