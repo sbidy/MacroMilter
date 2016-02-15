@@ -7,7 +7,7 @@
 ## 1.8 - 07.01.2016 sbidy - Commit at github, add the privacy statement
 ## 1.9 - 12.01.2016 sbidy - Clean up the code - deleted the virus total function. Hive off to a separate project/milter
 ## 2.0 - 12.01.2016 sbidy - Add spam header "X-Spam-Flag" to yes for a non-MIME Message
-## 2.1 - 15.02.2016 sbidy - Fix multi attachment bug, now parses multible attachments
+## 2.1 - 15.02.2016 sbidy - Fix multi attachment bug, now parses multible attachments, docm and xlsm added
 
 # The MIT License (MIT)
 
@@ -59,9 +59,9 @@ else:
 	
 
 ## Config (finals)
-FILE_EXTENSTION = ('.ppt', '.xls', '.doc', '.zip') # lower letter !! 
+FILE_EXTENSTION = ('.ppt', '.xls', '.doc', '.zip', '.docm', 'xlsm') # lower letter !! 
 __version__ = '2.1' # version
-REJECTLEVEL = 10 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
+REJECTLEVEL = 9 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 # at postfix smtpd_milters = inet:127.0.0.1:3690
 SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
 TIMEOUT = 30 # Milter timeout in seconds
