@@ -59,6 +59,9 @@ chown postfix:postfix -R /var/spool/postfix/etc/milter
 service MacroMilter start
 tail /var/log/syslog
 ```
+## User whitelist
+To allow a user or domain to send VAB-Macro-Mails enter only the user mail adress (xyz@domain.com) or the whole domain (@domain.com) in the whitelist.list file. Only one entry per line.
+
 ## Authors
 Stephan Traub - Sbidy -> https://github.com/sbidy
 
