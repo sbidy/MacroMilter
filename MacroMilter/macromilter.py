@@ -8,6 +8,7 @@
 ## 1.9 - 12.01.2016 sbidy - Clean up the code - deleted the virus total function. Hive off to a separate project/milter
 ## 2.0 - 12.01.2016 sbidy - Add spam header "X-Spam-Flag" to yes for a non-MIME Message
 ## 2.1 - 15.02.2016 sbidy - Fix multi attachment bug, now parses multible attachments, docm and xlsm added
+## 2.2 - 18.02.2016 sbidy - Fix while loop bug
 
 # The MIT License (MIT)
 
@@ -60,7 +61,7 @@ else:
 
 ## Config (finals)
 FILE_EXTENSTION = ('.ppt', '.xls', '.doc', '.zip', '.docm', 'xlsm') # lower letter !! 
-__version__ = '2.1' # version
+__version__ = '2.2' # version
 REJECTLEVEL = 9 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 # at postfix smtpd_milters = inet:127.0.0.1:3690
 SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
@@ -209,6 +210,7 @@ class MacroMilter(Milter.Base):
 						self.log("Whitelisted user %s - accept all attachments" % (msg_from))
 						report = None
 						macro_flag = False
+						break
 					
 					# if sender is not whitelisted
 					data = attachment.get_payload(decode=True)
@@ -218,6 +220,7 @@ class MacroMilter(Milter.Base):
 					if hash_data in hashtable:
 						self.log("Attachment %s already parsed ! REJECT" % hash_data)
 						macro_flag = True # reject
+						break
 
 					# sent to VBA parser
 					report = self.doc_parsing(filename, data)
@@ -243,6 +246,7 @@ class MacroMilter(Milter.Base):
 							self.log("File Added %s" % hash_data)
 							report = None
 							macro_flag = True # reject
+							break
 						# if level is lower than configured
 						else:
 							self.log("Message accepted with Level: %d - under configured threshold" % (self.level))
