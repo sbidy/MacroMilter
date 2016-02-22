@@ -57,7 +57,12 @@ service MacroMilter start
 tail /var/log/syslog
 ```
 ## User whitelist
-To allow a user or domain to send VAB-Macro-Mails enter only the user mail adress (xyz@domain.com) or the whole domain (@domain.com) in the whitelist.list file. Only one entry per line.
+To allow a user or domain to send VAB-Macro-Mails enter only the user mail address (xyz@domain.com) or the whole domain (@domain.com) in the whitelist.list file. Only one entry per line.
+
+Be careful with whitelisting! In some cases the better way is to block all Office_Macro_files with for example ClamAV.
+
+##VBA_OLE_Malware_MD5.txt
+This file contains more than 500 MD5 Hashes of suspicious Office documents.
 
 ## Authors
 Stephan Traub - Sbidy -> https://github.com/sbidy
