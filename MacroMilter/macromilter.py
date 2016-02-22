@@ -9,6 +9,7 @@
 ## 2.0 - 12.01.2016 sbidy - Add spam header "X-Spam-Flag" to yes for a non-MIME Message
 ## 2.1 - 15.02.2016 sbidy - Fix multi attachment bug, now parses multible attachments, docm and xlsm added
 ## 2.2 - 18.02.2016 sbidy - Fix while loop bug
+## 2.3 - 22.02.2016 sbidy - Fix multible entry at hashtable
 
 # The MIT License (MIT)
 
@@ -352,8 +353,10 @@ def writehashtofile():
 	while True:
 		hash_data = hash_to_write.get()
 		if not hash_data: break
-		with open("HashTable.dat", "a") as myfile:
-			myfile.write(hash_data + '\n')
+		# check if hash is in loaded hashtable
+		if hash_data not in hashtable:
+			with open("HashTable.dat", "a") as myfile:
+				myfile.write(hash_data + '\n')
 
 def writeExData():
 	'''
