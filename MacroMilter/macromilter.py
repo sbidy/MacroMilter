@@ -9,7 +9,7 @@
 ## 2.0 - 12.01.2016 sbidy - Add spam header "X-Spam-Flag" to yes for a non-MIME Message
 ## 2.1 - 15.02.2016 sbidy - Fix multi attachment bug, now parses multible attachments, docm and xlsm added
 ## 2.2 - 18.02.2016 sbidy - Fix while loop bug
-## 2.3 - 22.02.2016 sbidy - Fix multible entry at hashtable
+## 2.3 - 22.02.2016 sbidy - Fix multible entry at hashtable and remove ppt
 
 # The MIT License (MIT)
 
@@ -61,8 +61,8 @@ else:
 	
 
 ## Config (finals)
-FILE_EXTENSTION = ('.ppt', '.xls', '.doc', '.zip', '.docm', 'xlsm') # lower letter !! 
-__version__ = '2.2' # version
+FILE_EXTENSTION = ('.xls', '.doc', '.zip', '.docm', 'xlsm') # lower letter !! 
+__version__ = '2.3' # version
 REJECTLEVEL = 9 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 # at postfix smtpd_milters = inet:127.0.0.1:3690
 SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
