@@ -11,6 +11,7 @@
 ## 2.2 - 18.02.2016 sbidy - Fix while loop bug
 ## 2.3 - 22.02.2016 sbidy - Fix multible entry at hashtable and remove ppt
 ## 2.4 - 07.03.2016 sbidy - Update bad zip file exception and disable file logging + x-spam-flag
+## 2.5 - 07.03.2016 sbidy - Fix run.log bug
 
 # The MIT License (MIT)
 
@@ -63,7 +64,7 @@ else:
 
 ## Config (finals)
 FILE_EXTENSTION = ('.xls', '.doc', '.zip', '.docm', 'xlsm') # lower letter !! 
-__version__ = '2.4' # version
+__version__ = '2.5' # version
 REJECTLEVEL = 5 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 # at postfix smtpd_milters = inet:127.0.0.1:3690
 SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
