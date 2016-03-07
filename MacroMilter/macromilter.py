@@ -11,7 +11,7 @@
 ## 2.2 - 18.02.2016 sbidy - Fix while loop bug
 ## 2.3 - 22.02.2016 sbidy - Fix multible entry at hashtable and remove ppt
 ## 2.4 - 07.03.2016 sbidy - Update bad zip file exception and disable file logging + x-spam-flag
-## 2.5 - 07.03.2016 sbidy - Fix run.log bug
+## 2.5 - 07.03.2016 sbidy - Fix run.log bug and disable connect log
 
 # The MIT License (MIT)
 
@@ -107,7 +107,7 @@ class MacroMilter(Milter.Base):
 		self.IPname = IPname  # Name from a reverse IP lookup
 		self.fp = None # content
 		#self.receiver = self.getsymval('j') # not needed
-		self.log("connect from %s at %s" % (IPname, hostaddr)) # for logging
+		# self.log("connect from %s at %s" % (IPname, hostaddr)) # for logging
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -390,7 +390,7 @@ def background():
 			for i in msg:
 				text = "%s [%d] - %s" % (time.strftime('%d.%m.%y %H:%M:%S',time.localtime(ts)),id, i)
 				print text
-				open(msg_log,'a').write(text + '\n')
+				open(msg_log,'a+').write(text + '\n')
 	except Exception, e:
 		print "Cant write run.log"
 			
