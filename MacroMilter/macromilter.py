@@ -386,7 +386,7 @@ def background():
 		for i in msg:
 			text = "%s [%d] - %s" % (time.strftime('%d.%m.%y %H:%M:%S',time.localtime(ts)),id, i)
 			print text
-			open(LOG_DIR+'run.log','a').write(text + '\n')
+			open(LOG_DIR+'run.log','a+').write(text + '\n')
 			
 def writeperformacedata():
 	'''
