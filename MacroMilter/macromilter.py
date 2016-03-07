@@ -380,14 +380,19 @@ def background():
 	'''
 		Write the logging informations to stdout
 	'''
-	while True:
-		t = logq.get()
-		if not t: break
-		msg,id,ts = t
-		for i in msg:
-			text = "%s [%d] - %s" % (time.strftime('%d.%m.%y %H:%M:%S',time.localtime(ts)),id, i)
-			print text
-			open(LOG_DIR+'run.log','a').write(text + '\n')
+	msg_log = LOG_DIR+'run.log'
+	print msg_log
+	try:
+		while True:
+			t = logq.get()
+			if not t: break
+			msg,id,ts = t
+			for i in msg:
+				text = "%s [%d] - %s" % (time.strftime('%d.%m.%y %H:%M:%S',time.localtime(ts)),id, i)
+				print text
+				open(msg_log,'a').write(text + '\n')
+	except Exception, e:
+		print "Cant write run.log"
 			
 def writeperformacedata():
 	'''
