@@ -10,6 +10,7 @@
 ## 2.1 - 15.02.2016 sbidy - Fix multi attachment bug, now parses multible attachments, docm and xlsm added
 ## 2.2 - 18.02.2016 sbidy - Fix while loop bug
 ## 2.3 - 22.02.2016 sbidy - Fix multible entry at hashtable and remove ppt
+## 2.4 - 07.03.2016 sbidy - Update bad zip file exception and disable file logging + x-spam-flag
 
 # The MIT License (MIT)
 
@@ -62,11 +63,13 @@ else:
 
 ## Config (finals)
 FILE_EXTENSTION = ('.xls', '.doc', '.zip', '.docm', 'xlsm') # lower letter !! 
-__version__ = '2.3' # version
-REJECTLEVEL = 9 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
+__version__ = '2.4' # version
+REJECTLEVEL = 5 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 # at postfix smtpd_milters = inet:127.0.0.1:3690
 SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
 TIMEOUT = 30 # Milter timeout in seconds
+LOG_DIR = "/var/log/macromilter/"
+MESSAGE = "ERROR = Attachment contains unallowed office macros!"
 
 ## buffer queues for inter-thread communication 
 logq = Queue(maxsize=4)
@@ -151,6 +154,9 @@ class MacroMilter(Milter.Base):
 			else:
 				return Milter.ACCEPT
 		#if error make a fall-back to accept
+		except zipfile.BadZipfile, b:
+			self.log("Unexpected error - No zip File REJECT: %s" % sys.exc_value)
+			return Milter.REJECT
 		except Exception, a:
 			self.log("Unexpected error - fall back to ACCEPT: %s" % sys.exc_value)
 			return Milter.ACCEPT
@@ -174,7 +180,7 @@ class MacroMilter(Milter.Base):
 		msg = email.message_from_string(data.getvalue())
 		# Set Reject Message - definition from here
 		# https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
-		self.setreply('550','5.7.1','Delivery not authorized, message refused!')
+		self.setreply('550','5.7.1',MESSAGE)
 
 		# return if no attachment
 		if len(msg.get_payload()) < 2:
@@ -189,7 +195,7 @@ class MacroMilter(Milter.Base):
 			except Exception, a:
 				self.log("Cant read the attachment - we guess it is SPAM ! Let SpamFilter check -> ACCEPT")
 				# Set spam level
-				self.addheader("X-Spam-Flag","YES",self.headcount+1)
+				# self.addheader("X-Spam-Flag","YES",self.headcount+1)
 				# set flag to CONTINUE -> ACCEPT ??
 				return Milter.CONTINUE
 			# additional check if filename exists
@@ -198,7 +204,7 @@ class MacroMilter(Milter.Base):
 				# Get sender name <SENERNAME>
 				msg_from = re.findall('<([^"]*)>', msg['From'])
 				# write the file extension to log --> DEBUG - remove or activate as arg. flag
-				self.writeFileExtension(filename,msg_from, attachment.get_payload(decode=True))
+				# self.writeFileExtension(filename,msg_from, attachment.get_payload(decode=True))
 				# walk throught the attachments
 			
 				# parse the data if it is search extension
@@ -365,7 +371,7 @@ def writeExData():
 	while True:
 		data = extension_data.get()
 		if not data: break
-		with open("Filenames.log", "a") as myfile:
+		with open(LOG_DIR+"Filenames.log", "a") as myfile:
 			text = '%s\n' % data
 			myfile.write(text)
 
@@ -380,7 +386,7 @@ def background():
 		for i in msg:
 			text = "%s [%d] - %s" % (time.strftime('%d.%m.%y %H:%M:%S',time.localtime(ts)),id, i)
 			print text
-			open('run.log','a').write(text + '\n')
+			open(LOG_DIR+'run.log','a').write(text + '\n')
 			
 def writeperformacedata():
 	'''
@@ -392,7 +398,7 @@ def writeperformacedata():
 		latenz,level = data
 		for d in data:
 			text = "%f;%d;%s\n" % (latenz,level,time.strftime('%d/%m/%y %H:%M:%S',time.localtime(time.time())))
-			open('performace.data', 'a+').write(text)
+			open(LOG_DIR+'performace.data', 'a+').write(text)
 		
 ## === StartUp sequence
 
@@ -454,7 +460,7 @@ def main():
 	# cleanup the queues
 	logq.put(None)
 	extension_data.put(None)
-	hash_to_scan.put(None)
+	hash_to_write.put(None)
 	performace_data.put(None)
 
 	print "%s Macro milter shutdown" % time.strftime('%d.%b.%Y %H:%M:%S')
