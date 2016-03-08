@@ -240,7 +240,7 @@ class MacroMilter(Milter.Base):
 						# generate report for logfile >> <filename>.<extenstion>.log
 						report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
 						# change dir for log
-						os.chdir('./log')
+						os.chdir(LOG_DIR)
 						# write log
 						filename = filename + '.log'
 						open(filename,'w').write(report)
