@@ -12,6 +12,7 @@
 ## 2.3 - 22.02.2016 sbidy - Fix multible entry at hashtable and remove ppt
 ## 2.4 - 07.03.2016 sbidy - Update bad zip file exception and disable file logging + x-spam-flag
 ## 2.5 - 07.03.2016 sbidy - Fix run.log bug and disable connect log
+## 2.6 - 08.03.2016 Gulaschcowboy - Added CFG_DIR, fixed some paths, added systemd.service, Readme.opensuse and logrotate script
 
 # The MIT License (MIT)
 
@@ -69,6 +70,7 @@ REJECTLEVEL = 5 # Defines the max Macro Level (normal files < 10 // suspicious f
 # at postfix smtpd_milters = inet:127.0.0.1:3690
 SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
 TIMEOUT = 30 # Milter timeout in seconds
+CFG_DIR = "/etc/macromilter/"
 LOG_DIR = "/var/log/macromilter/"
 MESSAGE = "ERROR = Attachment contains unallowed office macros!"
 
@@ -238,7 +240,7 @@ class MacroMilter(Milter.Base):
 						# generate report for logfile >> <filename>.<extenstion>.log
 						report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
 						# change dir for log
-						os.chdir('./log')
+						os.chdir(LOG_DIR)
 						# write log
 						filename = filename + '.log'
 						open(filename,'w').write(report)
@@ -362,7 +364,7 @@ def writehashtofile():
 		if not hash_data: break
 		# check if hash is in loaded hashtable
 		if hash_data not in hashtable:
-			with open("HashTable.dat", "a") as myfile:
+			with open(LOG_DIR+"HashTable.dat", "a") as myfile:
 				myfile.write(hash_data + '\n')
 
 def writeExData():
@@ -413,7 +415,7 @@ def WhiteListLoad():
 		Function to load the data form the WhiteList file and load into memory
 	'''
 	global WhiteList
-	with open('whitelist.list') as f:
+	with open(CFG_DIR+'whitelist.list') as f:
 		WhiteList = f.read().splitlines()
 
 def HashTableLoad():
@@ -422,7 +424,7 @@ def HashTableLoad():
 	'''
 	# Load Hashs from file
 	global hashtable
-	hashtable = set(line.strip() for line in open('HashTable.dat','a+'))
+	hashtable = set(line.strip() for line in open(LOG_DIR+'HashTable.dat','a+'))
 	
 def main():
 
