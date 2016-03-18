@@ -13,6 +13,7 @@
 ## 2.4 - 07.03.2016 sbidy - Update bad zip file exception and disable file logging + x-spam-flag
 ## 2.5 - 07.03.2016 sbidy - Fix run.log bug and disable connect log
 ## 2.6 - 08.03.2016 Gulaschcowboy - Added CFG_DIR, fixed some paths, added systemd.service, Readme.opensuse and logrotate script
+## 2.7 - 18.03.2016 sbidy - Added rtf to file list
 
 # The MIT License (MIT)
 
@@ -64,7 +65,7 @@ else:
 	
 
 ## Config (finals)
-FILE_EXTENSTION = ('.xls', '.doc', '.zip', '.docm', 'xlsm') # lower letter !! 
+FILE_EXTENSTION = ('.rtf','.xls', '.doc', '.zip', '.docm', '.xlsm') # lower letter !! 
 __version__ = '2.5' # version
 REJECTLEVEL = 5 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 # at postfix smtpd_milters = inet:127.0.0.1:3690
