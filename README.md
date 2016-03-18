@@ -69,5 +69,4 @@ Stephan Traub - Sbidy -> https://github.com/sbidy
 
 ## License
 The MIT License (MIT)
-Copyright (c) 2016 Stephan Traub - audius GmbH, www.audius.de
 
