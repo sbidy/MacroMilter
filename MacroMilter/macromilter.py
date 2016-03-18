@@ -66,7 +66,7 @@ else:
 
 ## Config (finals)
 FILE_EXTENSTION = ('.rtf','.xls', '.doc', '.zip', '.docm', '.xlsm') # lower letter !! 
-__version__ = '2.5' # version
+__version__ = '2.7' # version
 REJECTLEVEL = 5 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 # at postfix smtpd_milters = inet:127.0.0.1:3690
 SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
