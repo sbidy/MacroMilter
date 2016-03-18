@@ -56,6 +56,32 @@ chown postfix:postfix -R /etc/macromilter
 service MacroMilter start
 tail /var/log/syslog
 ```
+## Installation script OpenSuse
+```bash
+zypper in python-devel sendmail-devel gcc python-pip git
+pip install pymilter
+pip install oletools
+git clone https://github.com/sbidy/MacroMilter
+#git clone https://github.com/Gulaschcowboy/MacroMilter
+mkdir -p /etc/macromilter/
+mkdir -p /var/log/macromilter/
+cp MacroMilter/MacroMilter/macromilter.py /etc/macromilter/
+cp MacroMilter/MacroMilter/macromilter.service /etc/systemd/system/
+cp MacroMilter/MacroMilter/macromilter.logrotate /etc/logrotate.d/
+
+touch /etc/macromilter/whitelist.list
+chown postfix:postfix /var/log/macromilter/
+
+systemctl daemon-reload
+systemctl start macromilter.service
+systemctl status macromilter.service
+systemctl enable macromilter.service
+
+postconf -e smtpd_milters=inet:127.0.0.1:3690
+postconf -e milter_default_action=accept
+
+rcpostfix reload
+```
 ## User whitelist
 To allow a user or domain to send VAB-Macro-Mails enter only the user mail address (xyz@domain.com) or the whole domain (@domain.com) in the whitelist.list file. Only one entry per line.
 
