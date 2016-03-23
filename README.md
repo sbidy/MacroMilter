@@ -90,6 +90,12 @@ Be careful with whitelisting! In some cases the better way is to block all Offic
 ##VBA_OLE_Malware_MD5.txt
 This file contains more than 500 MD5 Hashes of suspicious Office documents.
 
+## TBD
+* Calculate a better reject level
+* Use the full features ot the olevba
+* Add some advanced logic to the whitelist
+* Code need some love :-)
+
 ## Authors
 Stephan Traub - Sbidy -> https://github.com/sbidy
 
