@@ -1,3 +1,6 @@
+## IMPORTANT: NEW IN 2.8 !!!!
+Please create the "log" folder /var/log/macromilter/log or <LOG_DIR>/log !!
+
 ## Contributing
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
 
