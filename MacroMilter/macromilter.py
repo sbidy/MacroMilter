@@ -14,6 +14,7 @@
 ## 2.5 - 07.03.2016 sbidy - Fix run.log bug and disable connect log
 ## 2.6 - 08.03.2016 Gulaschcowboy - Added CFG_DIR, fixed some paths, added systemd.service, Readme.opensuse and logrotate script
 ## 2.7 - 18.03.2016 sbidy - Added rtf to file list
+## 2.8 - 29.03.2016 sbidy - Added some major fixes and code cleanup, added the zip extraction for .zip files regrading issue #5
 
 # The MIT License (MIT)
 
@@ -47,8 +48,9 @@ import sys
 import os
 import io
 import re
-import zipfile
 import hashlib
+import zipfile
+from zipfile import ZipFile, is_zipfile
 
 from sets import Set
 from oletools.olevba import VBA_Parser, TYPE_OLE, TYPE_OpenXML, TYPE_Word2003_XML, TYPE_MHTML
@@ -65,8 +67,10 @@ else:
 	
 
 ## Config (finals)
-FILE_EXTENSTION = ('.rtf','.xls', '.doc', '.zip', '.docm', '.xlsm') # lower letter !! 
-__version__ = '2.7' # version
+FILE_EXTENSION = ('.rtf','.xls', '.doc', '.docm', '.xlsm') # lower letter !! 
+ZIP_EXTENSIONS = ('.zip')
+MAX_FILESIZE = 50000000 # ~50MB
+__version__ = '2.8' # version
 REJECTLEVEL = 5 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 # at postfix smtpd_milters = inet:127.0.0.1:3690
 SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
@@ -94,6 +98,8 @@ class MacroMilter(Milter.Base):
 		self.fp = None
 		self.level = 0
 		self.headercount = 0
+		self.macroflag = False
+		self.size = 0 
 
 	@Milter.noreply
 	def connect(self, IPname, family, hostaddr):
@@ -179,7 +185,6 @@ class MacroMilter(Milter.Base):
 		'''
 			parse the whole email data an check if there is a attachment
 		'''
-		macro_flag = False
 		# use the email 
 		msg = email.message_from_string(data.getvalue())
 		# Set Reject Message - definition from here
@@ -197,91 +202,101 @@ class MacroMilter(Milter.Base):
 				attachment = msg.get_payload()[i]
 				filename = attachment.get_filename()
 			except Exception, a:
-				self.log("Cant read the attachment - we guess it is SPAM ! Let SpamFilter check -> ACCEPT")
+				self.log("Cant read the attachment - SPAM ?!")
 				# Set spam level
 				# self.addheader("X-Spam-Flag","YES",self.headcount+1)
 				# set flag to CONTINUE -> ACCEPT ??
 				return Milter.CONTINUE
-			# additional check if filename exists
+			print "Filename: "+filename
+			# additional check if filename exists and file size is "nomal"
 			if filename is not None:
-				# write extension to file
-				# Get sender name <SENERNAME>
-				msg_from = re.findall('<([^"]*)>', msg['From'])
-				# write the file extension to log --> DEBUG - remove or activate as arg. flag
-				# self.writeFileExtension(filename,msg_from, attachment.get_payload(decode=True))
-				# walk throught the attachments
-			
-				# parse the data if it is search extension
-				if (filename.lower().endswith(FILE_EXTENSTION)):
-
-					self.log("Find Attachment with extension - File content type: %s - File name: %s" % (attachment.get_content_type(),attachment.get_filename()))
-					# check sender name and return if at the whitelist
-					#if len(set(msg_from).intersection(WhiteList)) > 0:
-					if self.check_name(str(msg_from)):
-						self.log("Whitelisted user %s - accept all attachments" % (msg_from))
-						report = None
-						macro_flag = False
-						break
-					
-					# if sender is not whitelisted
-					data = attachment.get_payload(decode=True)
-					# generate Hash from file
-					hash_data = hashlib.md5(data).hexdigest()
-					# check if file is already parsed
-					if hash_data in hashtable:
-						self.log("Attachment %s already parsed ! REJECT" % hash_data)
-						macro_flag = True # reject
-						break
-
-					# sent to VBA parser
-					report = self.doc_parsing(filename, data)
-					self.log("VBA parsing exit")
-					# Save File to disk and return reject because attachment had vba Macro
-					if report is not None:				
-						# generate report for logfile >> <filename>.<extenstion>.log
-						report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
-						# change dir for log
-						os.chdir(LOG_DIR)
-						# write log
-						filename = filename + '.log'
-						open(filename,'w').write(report)
-						# change dir back
-						os.chdir('..')
-
-						# check if reject level is reached
-						if self.level > REJECTLEVEL:
-							# REJECT message and add to db file and memory
-							hashtable.add(hash_data)
-							hash_to_write.put(hash_data)
-							self.log("Message rejected with Level: %d" % (self.level))
-							self.log("File Added %s" % hash_data)
-							report = None
-							macro_flag = True # reject
-							break
-						# if level is lower than configured
-						else:
-							self.log("Message accepted with Level: %d - under configured threshold" % (self.level))
-							report = None
-							if not macro_flag:
-								macro_flag = False
-					else:
-						# report is none = no macro found in file
-						if not macro_flag:
-							macro_flag = False
-						report = None
+				self.log("Find Attachment with extension - File content type: %s - File name: %s" % (attachment.get_content_type(),attachment.get_filename()))
+				raw_data = attachment.get_payload(decode=True)
+				# parse if the file is a zip
+				if (filename.lower().endswith(ZIP_EXTENSIONS)):
+					# issue #5
+					self.checkZIPforVBA(raw_data,filename,msg)
+				if (filename.lower().endswith(FILE_EXTENSION)):
+					self.checkFileforVBA(raw_data,filename,msg)
 			else:
 				# Filename can be read !!!  Fall back to accept
-				if not macro_flag:
-					macro_flag = False
-				report = None
+				if not self.macroflag:
+					self.macroflag = False
 			# inc 1 - loop walk
 			i = i + 1
 
-		if not macro_flag :
+		if not self.macroflag :
 			# Nothing found 
 			return Milter.ACCEPT
-		if macro_flag:
+		if self.macroflag:
 			return Milter.REJECT
+
+	def checkFileforVBA(self, data, filename, msg):
+		'''
+			Checks if it contains a vba macro and checks if user is whitelisted or file allready parsed
+		'''
+		# parse the data if it is file extension
+		
+		# Get sender name <SENERNAME>
+		msg_from = re.findall('<([^"]*)>', msg['From'])
+	
+		# check sender name and return if at the whitelist
+		if self.check_name(str(msg_from)):
+			self.log("Whitelisted user %s - accept all attachments" % (msg_from))
+			self.macroflag = False
+			return
+				
+		# if sender is not whitelisted
+		
+		# generate Hash from file
+		hash_data = hashlib.md5(data).hexdigest()
+		# check if file is already parsed
+		if hash_data in hashtable:
+			self.log("Attachment %s already parsed ! REJECT" % hash_data)
+			self.macroflag = True # reject
+			return
+
+		# sent to VBA parser
+		report = self.doc_parsing(filename, data)
+		self.log("VBA parsing exit")
+		# Save log to disk and return reject because attachment contains vba Macro
+		if report is not None:				
+			# check if reject level is reached
+			if self.level > REJECTLEVEL:
+				# generate report for logfile >> <filename>.<extenstion>.log
+				report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
+				# write log
+				filename = filename + '.log'
+				open(LOG_DIR+"/log/"+filename,'w').write(report)
+
+				# REJECT message and add to db file and memory
+				hashtable.add(hash_data)
+				hash_to_write.put(hash_data)
+				self.log("Message rejected with Level: %d" % (self.level))
+				self.log("File Added %s" % hash_data)
+				self.macroflag = True # reject
+				# if level is lower than configured
+				return
+			else:
+				self.log("Message accepted with Level: %d - under configured threshold" % (self.level))
+				if not self.macroflag:
+					self.macroflag = False
+					return
+	
+	def checkZIPforVBA(self, data, filename, msg):
+		'''
+			Checks a zip for parsable files and send to the parser
+		'''
+		file_object = StringIO.StringIO(data)
+		#self.size = len(StringIO(data))
+		#print "Size:"+self.size
+		files_in_zip = self.extract_zip(file_object)
+		for zip_name,zip_data in files_in_zip.items():
+			# checks if it is a file
+			if zip_data and zip_name.lower().endswith(FILE_EXTENSION):
+				self.log("File in zip detected! Name: %s - check for VBA" % (zip_name))
+				# send to the checkFile
+				self.checkFileforVBA(zip_data,zip_name,msg)
 
 	def check_name(self, sender):
 		'''
@@ -291,22 +306,6 @@ class MacroMilter(Milter.Base):
 			if re.search(name,sender) and not name.startswith("#"): return True
 		return False
 	
-	def writeFileExtension(self, filename, msg_from, data):
-		'''
-			Function only for analytics - obsolete - delete in the next version
-		'''
-		if filename.lower().endswith(".zip"):
-			file_like_object = io.BytesIO(data)
-			file = zipfile.ZipFile(file_like_object)
-			for name in file.namelist():
-				# Add data to extension log
-				temp = str(name)+";"+str(msg_from)
-				self.addExData(temp)
-		else:
-			# Add data to extension log
-			temp = str(filename)+";"+str(msg_from)
-			self.addExData(temp)
-				
 	def doc_parsing(self, filename, filecontent):
 		'''
 			Function to parse the given data in mail content
@@ -351,7 +350,13 @@ class MacroMilter(Milter.Base):
 		performace_data.put(data,self.level)
 	def addExData(self, *data):
 		extension_data.put(data)
-
+	def extract_all(self, input_zip): 
+		# TBD - extract_zip is not called !?
+		return {entry: self.extract_zip(entry) for entry in ZipFile(input_zip).namelist() if is_zipfile(entry)}
+	def extract_zip(self, input_zip):
+		input_zip=ZipFile(input_zip)
+		return {name: input_zip.read(name) for name in input_zip.namelist()}
+	
 ## ===== END CLASS ========
 
 
