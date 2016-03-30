@@ -3,7 +3,7 @@ Please create the "log" folder /var/log/macromilter/log or LOG_DIR/log !!
 
 ```bash
   mkdir /var/log/macromilter/log
-  chown postfix:postifx -R /var/log/macromilter
+  chown postfix:postfix -R /var/log/macromilter
 ```
 
 ## Contributing
