@@ -15,6 +15,7 @@
 ## 2.6 - 08.03.2016 Gulaschcowboy - Added CFG_DIR, fixed some paths, added systemd.service, Readme.opensuse and logrotate script
 ## 2.7 - 18.03.2016 sbidy - Added rtf to file list
 ## 2.8 - 29.03.2016 sbidy - Added some major fixes and code cleanup, added the zip extraction for .zip files regrading issue #5
+## 2.8.1 - 30.03.2016 sbidy - Fix the str-exception, added some logging infomations
 
 # The MIT License (MIT)
 
@@ -70,7 +71,7 @@ else:
 FILE_EXTENSION = ('.rtf','.xls', '.doc', '.docm', '.xlsm') # lower letter !! 
 ZIP_EXTENSIONS = ('.zip')
 MAX_FILESIZE = 50000000 # ~50MB
-__version__ = '2.8' # version
+__version__ = '2.8.1' # version
 REJECTLEVEL = 5 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 # at postfix smtpd_milters = inet:127.0.0.1:3690
 SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
@@ -168,7 +169,9 @@ class MacroMilter(Milter.Base):
 			self.log("Unexpected error - No zip File REJECT: %s" % sys.exc_value)
 			return Milter.REJECT
 		except Exception, a:
-			self.log("Unexpected error - fall back to ACCEPT: %s" % sys.exc_value)
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			self.log("Unexpected error - fall back to ACCEPT: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
 			return Milter.ACCEPT
 		
 	def close(self):
@@ -207,16 +210,17 @@ class MacroMilter(Milter.Base):
 				# self.addheader("X-Spam-Flag","YES",self.headcount+1)
 				# set flag to CONTINUE -> ACCEPT ??
 				return Milter.CONTINUE
-			print "Filename: "+filename
 			# additional check if filename exists and file size is "nomal"
 			if filename is not None:
-				self.log("Find Attachment with extension - File content type: %s - File name: %s" % (attachment.get_content_type(),attachment.get_filename()))
+				
 				raw_data = attachment.get_payload(decode=True)
 				# parse if the file is a zip
 				if (filename.lower().endswith(ZIP_EXTENSIONS)):
+					self.log("Find Attachment with extension - File content type: %s - File name: %s" % (attachment.get_content_type(),attachment.get_filename()))
 					# issue #5
 					self.checkZIPforVBA(raw_data,filename,msg)
 				if (filename.lower().endswith(FILE_EXTENSION)):
+					self.log("Find Attachment with extension - File content type: %s - File name: %s" % (attachment.get_content_type(),attachment.get_filename()))
 					self.checkFileforVBA(raw_data,filename,msg)
 			else:
 				# Filename can be read !!!  Fall back to accept
@@ -267,7 +271,7 @@ class MacroMilter(Milter.Base):
 				report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
 				# write log
 				filename = filename + '.log'
-				open(LOG_DIR+"/log/"+filename,'w').write(report)
+				open(LOG_DIR+"log/"+filename,'w').write(report)
 
 				# REJECT message and add to db file and memory
 				hashtable.add(hash_data)
