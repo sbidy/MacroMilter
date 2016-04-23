@@ -1,3 +1,11 @@
+## IMPORTANT: NEW IN 2.8.1 !!!!
+Please create the "log" folder /var/log/macromilter/log or LOG_DIR/log !!
+
+```bash
+  mkdir /var/log/macromilter/log
+  chown postfix:postfix -R /var/log/macromilter
+```
+
 ## Contributing
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
 
@@ -25,7 +33,8 @@ This milter use the functionality from the oletools (https://bitbucket.org/decal
 ```bash
 # create files and folders
 mkdir /etc/macromilter
-mkdir /etc/macromilter/log
+mkdir -p /var/log/macromilter/
+mkdir /var/log/macromilter/log
 # only needed for a chroot env
 # mkdir /var/spool/postfix/etc/milter
 
@@ -49,6 +58,7 @@ touch /etc/macromilter/whitelist.list
 
 # set chown for postfix
 chown postfix:postfix -R /etc/macromilter
+chown postfix:postfix -R /var/log/macromilter
 # only needed if you run the milter at chroot an with a linux-socket
 # chown postfix:postfix -R /var/spool/postfix/etc/milter 
 
@@ -65,6 +75,7 @@ git clone https://github.com/sbidy/MacroMilter
 #git clone https://github.com/Gulaschcowboy/MacroMilter
 mkdir -p /etc/macromilter/
 mkdir -p /var/log/macromilter/
+mkdir /var/log/macromilter/log
 cp MacroMilter/MacroMilter/macromilter.py /etc/macromilter/
 cp MacroMilter/MacroMilter/macromilter.service /etc/systemd/system/
 cp MacroMilter/MacroMilter/macromilter.logrotate /etc/logrotate.d/
