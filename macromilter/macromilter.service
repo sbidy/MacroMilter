@@ -1,0 +1,25 @@
+
+# Description:
+#
+#  Used to start MacroMilter service
+#
+
+[Unit]
+Description=MacroMilter Service
+Requires=var-run.mount
+Wants=nss-lookup.target network.target remote-fs.target time-sync.target
+After=var-run.mount nss-lookup.target network.target remote-fs.target time-sync.target
+Before=mail-transfer-agent.target
+
+[Service]
+#Type=forking
+User=postfix
+Group=postfix
+#RootDirectory=/etc/macromilter/
+ExecStart=/usr/bin/python /etc/macromilter/macromilter.py 
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target
+

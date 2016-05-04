@@ -1,0 +1,16 @@
+/var/log/macromilter/run.log
+{
+    compress
+    dateext
+    maxage 1
+    rotate 14
+    missingok
+    notifempty
+    size +4096k
+    create 640 postfix postfix
+    sharedscripts
+    postrotate
+        /usr/bin/systemctl restart macromilter.service > /dev/null
+    endscript
+}
+

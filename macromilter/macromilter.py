@@ -194,17 +194,21 @@ class MacroMilter(Milter.Base):
             return Milter.ACCEPT
         # if attachment get name
 
+        self.checkAttachment(msg)
+
+        if not self.attachment_contains_macro:
+            # Nothing found
+            return Milter.ACCEPT
+        if self.attachment_contains_macro:
+            return Milter.REJECT
+
+    def checkAttachment(self, msg):
         i = 1
         while len(msg.get_payload()) > i:
-            try:
-                attachment = msg.get_payload()[i]
-                filename = attachment.get_filename()
-            except Exception, a:
-                self.log("Cant read the attachment - SPAM ?!")
-                # Set spam level
-                # self.addheader("X-Spam-Flag","YES",self.headcount+1)
-                # set flag to CONTINUE -> ACCEPT ??
-                return Milter.CONTINUE
+
+            attachment = msg.get_payload()[i]
+            filename = attachment.get_filename()
+
             # additional check if filename exists and file size is "nomal"
             if filename is not None:
 
@@ -212,12 +216,12 @@ class MacroMilter(Milter.Base):
                 # parse if the file is a zip
                 if (filename.lower().endswith(ZIP_EXTENSIONS)):
                     self.log("Find Attachment with extension - File content type: %s - File name: %s" % (
-                    attachment.get_content_type(), attachment.get_filename()))
+                        attachment.get_content_type(), attachment.get_filename()))
                     # issue #5
                     self.checkZIPforVBA(raw_data, filename, msg)
                 if (filename.lower().endswith(FILE_EXTENSION)):
                     self.log("Find Attachment with extension - File content type: %s - File name: %s" % (
-                    attachment.get_content_type(), attachment.get_filename()))
+                        attachment.get_content_type(), attachment.get_filename()))
                     self.checkFileforVBA(raw_data, filename, msg)
             else:
                 # Filename can be read !!!  Fall back to accept
@@ -225,12 +229,6 @@ class MacroMilter(Milter.Base):
                     self.attachment_contains_macro = False
             # inc 1 - loop walk
             i = i + 1
-
-        if not self.attachment_contains_macro:
-            # Nothing found
-            return Milter.ACCEPT
-        if self.attachment_contains_macro:
-            return Milter.REJECT
 
     def checkFileforVBA(self, data, filename, msg):
         '''
@@ -451,16 +449,16 @@ def main():
     HashTableLoad()
 
     # create helper threads
-    bt = Thread(target=background)
-    perft = Thread(target=writeperformacedata)
-    ha = Thread(target=writehashtofile)
-    ex = Thread(target=writeExData)
+    background_thread = Thread(target=background)
+    performance_thread = Thread(target=writeperformacedata)
+    hashwriter_thread = Thread(target=writehashtofile)
+    exdata_writer_thread = Thread(target=writeExData)
 
     # start helper threads
-    ex.start()
-    perft.start()
-    bt.start()
-    ha.start()
+    exdata_writer_thread.start()
+    performance_thread.start()
+    background_thread.start()
+    hashwriter_thread.start()
 
     # Register to have the Milter factory create instances of the class:
     Milter.factory = MacroMilter
@@ -478,10 +476,10 @@ def main():
     Milter.runmilter("MacroMilter", SOCKET, TIMEOUT)
 
     # wait for helper threads
-    bt.join()  # stop logging thread
-    perft.join()  # stop performance data thread
-    ha.join()  # stop hash data thread
-    ex.join()  # stop filename thread - obsolete - delete in next version
+    background_thread.join()  # stop logging thread
+    performance_thread.join()  # stop performance data thread
+    hashwriter_thread.join()  # stop hash data thread
+    exdata_writer_thread.join()  # stop filename thread - obsolete - delete in next version
 
     # cleanup the queues
     logq.put(None)
