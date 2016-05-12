@@ -38,17 +38,19 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+from _socket import AF_INET6
 
 import Milter
 import StringIO
 import time
 import email
 import sys
-import os
 import re
 import hashlib
 import zipfile
 from zipfile import ZipFile, is_zipfile
+import os
+import errno
 
 from sets import Set
 from oletools.olevba import VBA_Parser, TYPE_OLE, TYPE_OpenXML, TYPE_Word2003_XML, TYPE_MHTML
@@ -61,6 +63,7 @@ if True:
 else:
     from threading import Thread
     from Queue import Queue
+from Queue import Empty
 
 ## Config (finals)
 FILE_EXTENSION = ('.rtf', '.xls', '.doc', '.docm', '.xlsm')  # lower letter !!
@@ -75,21 +78,24 @@ CFG_DIR = "/etc/macromilter/"
 LOG_DIR = "/var/log/macromilter/"
 MESSAGE = "ERROR = Attachment contains unallowed office macros!"
 
-## buffer queues for inter-thread communication 
-logq = Queue(maxsize=4)
-performace_data = Queue(maxsize=4)
-extension_data = Queue(maxsize=4)
-hash_to_write = Queue(maxsize=4)
-hashtable = Set()
-## immutable state
+
+logq = None
+performace_data = None
+extension_data = None
+hash_to_write = None
+hashtable = None
 WhiteList = None
+
 
 
 ## Customized milter class - partly copied from
 ## https://github.com/jmehnle/pymilter/blob/master/milter-template.py
 
 
-class MacroMilter(Milter.Base):
+class MacroMilterBase(Milter.Base):
+    '''Base class for MacroMilter to move boilerplate connection stuff away from the real
+        business logic for macro parsing
+    '''
     def __init__(self):  # A new instance with each new connection.
         self.id = Milter.uniqueID()  # Integer incremented with each call.
         self.messageToParse = None
@@ -127,8 +133,8 @@ class MacroMilter(Milter.Base):
         return Milter.CONTINUE
 
     @Milter.noreply
-    def header(self, name, hval):
-        self.messageToParse.write("%s: %s\n" % (name, hval))
+    def header(self, header_field, header_field_value):
+        self.messageToParse.write("%s: %s\n" % (header_field, header_field_value))
         self.headcount = self.headercount + 1
         return Milter.CONTINUE
 
@@ -142,8 +148,35 @@ class MacroMilter(Milter.Base):
         self.messageToParse.write(chunk)
         return Milter.CONTINUE
 
+    def close(self):
+        # stop timer at close
+        return Milter.CONTINUE
+
+    def abort(self):
+        # nothing to clean up
+        return Milter.CONTINUE
+
+    def log(self, *msg):
+        logq.put((msg, self.id, time.time()))
+
+    def mkdir_p(self, path):
+        try:
+            os.makedirs(path)
+        except OSError as exc:  # Python >2.5
+            if exc.errno == errno.EEXIST and os.path.isdir(path):
+                pass
+            else:
+                raise
+
+
+class MacroMilter(MacroMilterBase):
+    '''See MacroMilterBase for milter connection handling'''
+
     # end of file - run the parser
     def eom(self):
+        '''This method is called when the end of the email message has been reached.
+           This event also triggers the milter specific actions
+        '''
         try:
             # set data pointer back to 0
             self.messageToParse.seek(0)
@@ -169,21 +202,13 @@ class MacroMilter(Milter.Base):
             self.log("Unexpected error - fall back to ACCEPT: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
             return Milter.ACCEPT
 
-    def close(self):
-        # stop timer at close
-        return Milter.CONTINUE
-
-    def abort(self):
-        # nothing to clean up
-        return Milter.CONTINUE
-
     ## ==== Data processing ====
 
     def parseAndCheckMessageAttachment(self):
         '''
             parse the whole email data an check if there is a attachment
         '''
-        # use the email
+        # use email from package email to parse the message string
         msg = email.message_from_string(self.messageToParse.getvalue())
         # Set Reject Message - definition from here
         # https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
@@ -209,30 +234,30 @@ class MacroMilter(Milter.Base):
             attachment = msg.get_payload()[i]
             filename = attachment.get_filename()
 
-            # additional check if filename exists and file size is "nomal"
-            if filename is not None:
-
-                raw_data = attachment.get_payload(decode=True)
-                # parse if the file is a zip
-                if (filename.lower().endswith(ZIP_EXTENSIONS)):
-                    self.log("Find Attachment with extension - File content type: %s - File name: %s" % (
-                        attachment.get_content_type(), attachment.get_filename()))
-                    # issue #5
-                    self.checkZIPforVBA(raw_data, filename, msg)
-                if (filename.lower().endswith(FILE_EXTENSION)):
-                    self.log("Find Attachment with extension - File content type: %s - File name: %s" % (
-                        attachment.get_content_type(), attachment.get_filename()))
-                    self.checkFileforVBA(raw_data, filename, msg)
-            else:
-                # Filename can be read !!!  Fall back to accept
+            if filename is None:
                 if not self.attachment_contains_macro:
                     self.attachment_contains_macro = False
-            # inc 1 - loop walk
+                i = i + 1
+                continue
+
+            raw_data = attachment.get_payload(decode=True)
+
+            # parse if the file is a zip
+            if (filename.lower().endswith(ZIP_EXTENSIONS)):
+                self.log("Find Attachment with extension - File content type: %s - File name: %s" % (
+                    attachment.get_content_type(), attachment.get_filename()))
+
+                self.checkZIPforVBA(raw_data, filename, msg)
+            if (filename.lower().endswith(FILE_EXTENSION)):
+                self.log("Find Attachment with extension - File content type: %s - File name: %s" % (
+                    attachment.get_content_type(), attachment.get_filename()))
+                self.checkFileforVBA(raw_data, filename, msg)
+
             i = i + 1
 
     def checkFileforVBA(self, data, filename, msg):
         '''
-            Checks if it contains a vba macro and checks if user is whitelisted or file allready parsed
+            Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
         '''
         # parse the data if it is file extension
 
@@ -266,12 +291,15 @@ class MacroMilter(Milter.Base):
                 report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
                 # write log
                 filename = filename + '.log'
-                open(LOG_DIR + "log/" + filename, 'w').write(report)
+                self.mkdir_p(LOG_DIR + "log/")
+                report_logfile_handle = open(LOG_DIR + "log/" + filename, 'w')
+                report_logfile_handle.write(report)
+                report_logfile_handle.close()
 
                 # REJECT message and add to db file and memory
                 hashtable.add(hash_data)
                 hash_to_write.put(hash_data)
-                self.log("Message rejected with Level: %d" % (self.level))
+                self.log("Message rejected with Level: %d" % self.level)
                 self.log("File Added %s" % hash_data)
                 self.attachment_contains_macro = True  # reject
                 # if level is lower than configured
@@ -284,7 +312,7 @@ class MacroMilter(Milter.Base):
 
     def checkZIPforVBA(self, data, filename, msg):
         '''
-            Checks a zip for parsable files and send to the parser
+            Checks a zip for parsesable files and send to the parser
         '''
         file_object = StringIO.StringIO(data)
         # self.size = len(StringIO(data))
@@ -301,8 +329,9 @@ class MacroMilter(Milter.Base):
         '''
             Lookup if the sender is at the whitelist - @domains.com must be supported
         '''
-        for name in WhiteList:
-            if re.search(name, sender) and not name.startswith("#"): return True
+        if WhiteList is not None:
+            for name in WhiteList:
+                if re.search(name, sender) and not name.startswith("#"): return True
         return False
 
     def doc_parsing(self, filename, filecontent):
@@ -344,9 +373,6 @@ class MacroMilter(Milter.Base):
 
         ## === Support Functions ===
 
-    def log(self, *msg):
-        logq.put((msg, self.id, time.time()))
-
     def addData(self, *data):
         performace_data.put(data, self.level)
 
@@ -366,6 +392,10 @@ class MacroMilter(Milter.Base):
 
 
 ## ==== start MAIN ========
+
+
+
+
 def writehashtofile():
     '''
         Write the hash to db file
@@ -390,13 +420,66 @@ def writeExData():
             text = '%s\n' % data
             myfile.write(text)
 
+def initialize_async_process_queues(queuesize = 4):
+    global logq, performace_data, extension_data, hash_to_write, hashtable, WhiteList
+    ## buffer queues for inter-thread communication
 
-def background():
+    logq = Queue(maxsize=queuesize) if (logq == None) else logq
+    performace_data = Queue(maxsize=queuesize) if (performace_data == None) else performace_data
+    extension_data = Queue(maxsize=queuesize) if (extension_data == None) else extension_data
+    hash_to_write = Queue(maxsize=queuesize) if (hash_to_write == None) else extension_data
+    hashtable = Set()
+    ## immutable state
+    WhiteList = None
+
+
+def create_and_start_worker_threads():
+    #initialize_async_process_queues()
+    thread_pool = []
+    # create helper threads
+    thread_pool.append(Thread(target=listen_on_logqueue_and_write_logging_to_stdout))
+    #logq.put("log writer thread started")
+    thread_pool.append(Thread(target=writeperformacedata))
+    thread_pool.append(Thread(target=writehashtofile))
+    thread_pool.append(Thread(target=writeExData))
+    # start helper threads
+    for workerThread in thread_pool:
+        workerThread.start()
+
+    return thread_pool
+
+
+def shutdown_worker_threads(thread_pool):
+    # wait for helper threads
+    for workerThread in thread_pool:
+        workerThread.join()
+
+def cleanup_queues():
+    # cleanup the queues
+    logq.put(None)
+    extension_data.put(None)
+    hash_to_write.put(None)
+    performace_data.put(None)
+
+    clear_queue(logq)
+    clear_queue(extension_data)
+    clear_queue(hash_to_write)
+    clear_queue(performace_data)
+
+
+def clear_queue(queue):
+    try:
+        while True:
+            queue.get_nowait()
+    except Empty:
+        pass
+
+def listen_on_logqueue_and_write_logging_to_stdout():
     '''
         Write the logging informations to stdout
     '''
     msg_log = LOG_DIR + 'run.log'
-    print msg_log
+    print "macromilter: logging into " + msg_log
     try:
         while True:
             t = logq.get()
@@ -448,17 +531,7 @@ def main():
     WhiteListLoad()
     HashTableLoad()
 
-    # create helper threads
-    background_thread = Thread(target=background)
-    performance_thread = Thread(target=writeperformacedata)
-    hashwriter_thread = Thread(target=writehashtofile)
-    exdata_writer_thread = Thread(target=writeExData)
-
-    # start helper threads
-    exdata_writer_thread.start()
-    performance_thread.start()
-    background_thread.start()
-    hashwriter_thread.start()
+    thread_pool = create_and_start_worker_threads()
 
     # Register to have the Milter factory create instances of the class:
     Milter.factory = MacroMilter
@@ -475,17 +548,8 @@ def main():
     # start the milter
     Milter.runmilter("MacroMilter", SOCKET, TIMEOUT)
 
-    # wait for helper threads
-    background_thread.join()  # stop logging thread
-    performance_thread.join()  # stop performance data thread
-    hashwriter_thread.join()  # stop hash data thread
-    exdata_writer_thread.join()  # stop filename thread - obsolete - delete in next version
-
-    # cleanup the queues
-    logq.put(None)
-    extension_data.put(None)
-    hash_to_write.put(None)
-    performace_data.put(None)
+    shutdown_worker_threads(thread_pool)
+    cleanup_queues()
 
     print "%s Macro milter shutdown" % time.strftime('%d.%b.%Y %H:%M:%S')
 
