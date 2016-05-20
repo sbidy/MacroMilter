@@ -17,6 +17,7 @@
 ## 2.8 - 29.03.2016 sbidy - Added some major fixes and code cleanup, added the zip extraction for .zip files regrading issue #5
 ## 2.8.1 - 30.03.2016 sbidy - Fix the str-exception, added some logging infomations
 ## 2.9 - 20.05.2016 sbidy - Fix issue #6 - queue not empty after log fiel cant written, write extension data to file deleted
+## 2.9.1 - 20.05.2016 sbidy - Additional fixes for #6
 
 # The MIT License (MIT)
 
@@ -74,7 +75,7 @@ else:
 FILE_EXTENSION = ('.rtf','.docx','.xlsx','.xls', '.doc', '.docm', '.xlsm') # lower letter !! 
 ZIP_EXTENSIONS = ('.zip')
 MAX_FILESIZE = 50000000 # ~50MB
-__version__ = '2.9' # version
+__version__ = '2.9.1' # version
 REJECTLEVEL = 5 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 
 RAR_SUPPORT = True # or False # Requires unrar (apt-get install unrar) and "pip install rarfile"
@@ -89,9 +90,9 @@ LOG_DIR = "/var/log/macromilter/"
 MESSAGE = "ERROR = Attachment contains unallowed office macros!"
 
 ## buffer queues for inter-thread communication 
-logq = Queue(maxsize=4)
-performace_data = Queue(maxsize=4)
-hash_to_write = Queue(maxsize=4)
+logq = Queue(maxsize=10)
+performace_data = Queue(maxsize=10)
+hash_to_write = Queue(maxsize=10)
 hashtable = Set()
 ## immutable state
 WhiteList = None
@@ -406,19 +407,19 @@ def writehashtofile():
 	'''
 		Write the hash to db file
 	'''
-	try:	
-		while True:
+	while True:	
+		try:
 			hash_data = hash_to_write.get()
 			if not hash_data: break
 			# check if hash is in loaded hashtable
 			if hash_data not in hashtable:
 				with open(LOG_DIR+"HashTable.dat", "a") as myfile:
 					myfile.write(hash_data + '\n')
-	except Exception, e:
-		print "Cant write HashTable.dat"
-		exc_type, exc_obj, exc_tb = sys.exc_info()
-		fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-		print("Error at log file: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
+		except Exception, e:
+			print "Cant write HashTable.dat"
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			print("Error at log file: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
 
 def background():
 	'''
@@ -426,32 +427,41 @@ def background():
 	'''
 	msg_log = LOG_DIR+'run.log'
 	print msg_log
-	try:
-		while True:
+	while True:
+		try:
 			t = logq.get()
 			if not t: break
 			msg,id,ts = t
 			for i in msg:
 				text = "%s [%d] - %s" % (time.strftime('%d.%m.%y %H:%M:%S',time.localtime(ts)),id, i)
 				text = text.encode('utf8')
+				print text
 				open(msg_log,'a+').write(text + '\n')
-	except Exception, e:
-		print "Cant write run.log"
-		exc_type, exc_obj, exc_tb = sys.exc_info()
-		fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-		print("Error at log file: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
+		except Exception, e:
+			print "Cant write run.log"
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			print("Error at log file: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
+
 			
 def writeperformacedata():
 	'''
 		Write the performance data to file in separate thread
 	'''
 	while True:
-		data = performace_data.get()
-		if not data: break
-		latenz,level = data
-		for d in data:
-			text = "%f;%d;%s\n" % (latenz,level,time.strftime('%d/%m/%y %H:%M:%S',time.localtime(time.time())))
-			open(LOG_DIR+'performace.data', 'a+').write(text)
+		try:
+			data = performace_data.get()
+			if not data: break
+			latenz,level = data
+			for d in data:
+				text = "%f;%d;%s\n" % (latenz,level,time.strftime('%d/%m/%y %H:%M:%S',time.localtime(time.time())))
+				open(LOG_DIR+'performace.data', 'a+').write(text)
+		except Exception, e:
+			print "Cant write run.log"
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			print("Error at log file: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
+
 		
 ## === StartUp sequence
 
