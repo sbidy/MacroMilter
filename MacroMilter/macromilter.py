@@ -433,7 +433,7 @@ def background():
 			msg,id,ts = t
 			for i in msg:
 				text = "%s [%d] - %s" % (time.strftime('%d.%m.%y %H:%M:%S',time.localtime(ts)),id, i)
-				print text
+				text = text.encode('utf8')
 				open(msg_log,'a+').write(text + '\n')
 	except Exception, e:
 		print "Cant write run.log"
