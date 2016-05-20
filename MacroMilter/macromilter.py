@@ -16,6 +16,7 @@
 ## 2.7 - 18.03.2016 sbidy - Added rtf to file list
 ## 2.8 - 29.03.2016 sbidy - Added some major fixes and code cleanup, added the zip extraction for .zip files regrading issue #5
 ## 2.8.1 - 30.03.2016 sbidy - Fix the str-exception, added some logging infomations
+## 2.9 - 20.05.2016 sbidy - Fix issue #6 - queue not empty after log fiel cant written, write extension data to file deleted
 
 # The MIT License (MIT)
 
@@ -51,6 +52,8 @@ import io
 import re
 import hashlib
 import zipfile
+import tempfile
+
 from zipfile import ZipFile, is_zipfile
 
 from sets import Set
@@ -68,13 +71,18 @@ else:
 	
 
 ## Config (finals)
-FILE_EXTENSION = ('.rtf','.xls', '.doc', '.docm', '.xlsm') # lower letter !! 
+FILE_EXTENSION = ('.rtf','.docx','.xlsx','.xls', '.doc', '.docm', '.xlsm') # lower letter !! 
 ZIP_EXTENSIONS = ('.zip')
 MAX_FILESIZE = 50000000 # ~50MB
-__version__ = '2.8.1' # version
+__version__ = '2.9' # version
 REJECTLEVEL = 5 # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
-# at postfix smtpd_milters = inet:127.0.0.1:3690
-SOCKET = "inet:3690@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
+
+RAR_SUPPORT = True # or False # Requires unrar (apt-get install unrar) and "pip install rarfile"
+
+# at to the postfix configuration -->  "smtpd_milters = inet:127.0.0.1:3690"
+# see http://www.postfix.org/MILTER_README.html
+
+SOCKET = "inet:10103@127.0.0.1" # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
 TIMEOUT = 30 # Milter timeout in seconds
 CFG_DIR = "/etc/macromilter/"
 LOG_DIR = "/var/log/macromilter/"
@@ -83,7 +91,6 @@ MESSAGE = "ERROR = Attachment contains unallowed office macros!"
 ## buffer queues for inter-thread communication 
 logq = Queue(maxsize=4)
 performace_data = Queue(maxsize=4)
-extension_data = Queue(maxsize=4)
 hash_to_write = Queue(maxsize=4)
 hashtable = Set()
 ## immutable state
@@ -106,15 +113,15 @@ class MacroMilter(Milter.Base):
 	def connect(self, IPname, family, hostaddr):
 		
 	# define all vars
-		self.IP = hostaddr[0]
-		self.port = hostaddr[1]
-		if family == AF_INET6:
-			self.flow = hostaddr[2]
-			self.scope = hostaddr[3]
-		else:
-			self.flow = None
-			self.scope = None
-		self.IPname = IPname  # Name from a reverse IP lookup
+		#self.IP = hostaddr[0]
+		#self.port = hostaddr[1]
+		#if family == AF_INET6:
+		#	self.flow = hostaddr[2]
+		#	self.scope = hostaddr[3]
+		#else:
+		#	self.flow = None
+		#	self.scope = None
+		#self.IPname = IPname  # Name from a reverse IP lookup
 		self.fp = None # content
 		#self.receiver = self.getsymval('j') # not needed
 		# self.log("connect from %s at %s" % (IPname, hostaddr)) # for logging
@@ -222,6 +229,8 @@ class MacroMilter(Milter.Base):
 				if (filename.lower().endswith(FILE_EXTENSION)):
 					self.log("Find Attachment with extension - File content type: %s - File name: %s" % (attachment.get_content_type(),attachment.get_filename()))
 					self.checkFileforVBA(raw_data,filename,msg)
+				#if (filename.lower().endswith(".rar") and RAR_SUPPORT):
+				#	self.checkRARforVBA(raw_data,filename,msg)
 			else:
 				# Filename can be read !!!  Fall back to accept
 				if not self.macroflag:
@@ -302,6 +311,36 @@ class MacroMilter(Milter.Base):
 				# send to the checkFile
 				self.checkFileforVBA(zip_data,zip_name,msg)
 
+	def checkRARforVBA(self, data, filename, msg):
+		'''
+			Creates a tmp file from the rar arcive (no in-memory support for rar possible)
+		'''
+		import rarfile
+
+		file_size_limit = 500000
+		rarfile.UNRAR_TOOL = "unrar"
+
+		# create temp file
+		tmpdir = tempfile.mkdtemp()
+		# Ensure the file is read/write by the creator only
+		saved_umask = os.umask(0077)
+		path = os.path.join(tmpdir, filename)
+		try:
+			with open(path, "w") as tmp:
+				tmp.write(data)
+			with rarfile.RarFile(path) as rf:
+				for f in rf.infolist():
+					if f and f.filename.endswith(FILE_EXTENSION) and file_size_limit > f.file_size:
+						self.log("File in rar detected! Name: %s - check for VBA" % (f.filename))
+						rar_file = rf.read(f.filename)
+						print rar_file
+		except IOError as e:
+			self.log("IOError at temp file !! %s" % path)
+			return Milter.CONTINUE
+		finally:
+			os.remove(path)
+			os.removedirs(tmpdir)
+
 	def check_name(self, sender):
 		'''
 			Lookup if the sender is at the whitelist - @domains.com must be supported
@@ -352,8 +391,6 @@ class MacroMilter(Milter.Base):
 		logq.put((msg,self.id,time.time()))
 	def addData(self, *data):
 		performace_data.put(data,self.level)
-	def addExData(self, *data):
-		extension_data.put(data)
 	def extract_all(self, input_zip): 
 		# TBD - extract_zip is not called !?
 		return {entry: self.extract_zip(entry) for entry in ZipFile(input_zip).namelist() if is_zipfile(entry)}
@@ -369,24 +406,19 @@ def writehashtofile():
 	'''
 		Write the hash to db file
 	'''
-	while True:
-		hash_data = hash_to_write.get()
-		if not hash_data: break
-		# check if hash is in loaded hashtable
-		if hash_data not in hashtable:
-			with open(LOG_DIR+"HashTable.dat", "a") as myfile:
-				myfile.write(hash_data + '\n')
-
-def writeExData():
-	'''
-		Write the filenames to file - only used for debug - delete in the next version 
-	'''
-	while True:
-		data = extension_data.get()
-		if not data: break
-		with open(LOG_DIR+"Filenames.log", "a") as myfile:
-			text = '%s\n' % data
-			myfile.write(text)
+	try:	
+		while True:
+			hash_data = hash_to_write.get()
+			if not hash_data: break
+			# check if hash is in loaded hashtable
+			if hash_data not in hashtable:
+				with open(LOG_DIR+"HashTable.dat", "a") as myfile:
+					myfile.write(hash_data + '\n')
+	except Exception, e:
+		print "Cant write HashTable.dat"
+		exc_type, exc_obj, exc_tb = sys.exc_info()
+		fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+		print("Error at log file: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
 
 def background():
 	'''
@@ -405,6 +437,9 @@ def background():
 				open(msg_log,'a+').write(text + '\n')
 	except Exception, e:
 		print "Cant write run.log"
+		exc_type, exc_obj, exc_tb = sys.exc_info()
+		fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+		print("Error at log file: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
 			
 def writeperformacedata():
 	'''
@@ -446,10 +481,8 @@ def main():
 	bt = Thread(target=background)
 	perft = Thread(target=writeperformacedata)
 	ha = Thread(target=writehashtofile)
-	ex = Thread(target=writeExData)
 
 	# start helper threads
-	ex.start()
 	perft.start()
 	bt.start()
 	ha.start()
@@ -473,11 +506,9 @@ def main():
 	bt.join() # stop logging thread
 	perft.join() # stop performance data thread
 	ha.join() # stop hash data thread
-	ex.join() # stop filename thread - obsolete - delete in next version
 
 	# cleanup the queues
 	logq.put(None)
-	extension_data.put(None)
 	hash_to_write.put(None)
 	performace_data.put(None)
 
