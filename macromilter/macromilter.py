@@ -76,6 +76,7 @@ SOCKET = "inet:3690@127.0.0.1"  # bind to unix or tcp socket "inet:port@ip" or "
 TIMEOUT = 30  # Milter timeout in seconds
 CFG_DIR = "/etc/macromilter/"
 LOG_DIR = "/var/log/macromilter/"
+WHITELIST_FILE = CFG_DIR + "whitelist.list"
 MESSAGE = "ERROR = Attachment contains unallowed office macros!"
 
 
@@ -214,18 +215,20 @@ class MacroMilter(MacroMilterBase):
         # https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
         self.setreply('550', '5.7.1', MESSAGE)
 
-        # return if no attachment
-        if len(msg.get_payload()) < 2:
-            return Milter.ACCEPT
-        # if attachment get name
+        self.attachment_contains_macro = False
 
-        self.checkAttachment(msg)
+        if self.sender_is_in_whitelist(msg):
+            self.attachment_contains_macro = False
+        else:
+            if len(msg.get_payload()) >= 2:
+                self.checkAttachment(msg)
 
-        if not self.attachment_contains_macro:
-            # Nothing found
-            return Milter.ACCEPT
+
         if self.attachment_contains_macro:
             return Milter.REJECT
+        else:
+            return Milter.ACCEPT
+
 
     def checkAttachment(self, msg):
         i = 1
@@ -235,8 +238,6 @@ class MacroMilter(MacroMilterBase):
             filename = attachment.get_filename()
 
             if filename is None:
-                if not self.attachment_contains_macro:
-                    self.attachment_contains_macro = False
                 i = i + 1
                 continue
 
@@ -244,40 +245,39 @@ class MacroMilter(MacroMilterBase):
 
             # parse if the file is a zip
             if (filename.lower().endswith(ZIP_EXTENSIONS)):
-                self.log("Find Attachment with extension - File content type: %s - File name: %s" % (
-                    attachment.get_content_type(), attachment.get_filename()))
-
                 self.checkZIPforVBA(raw_data, filename, msg)
-            if (filename.lower().endswith(FILE_EXTENSION)):
-                self.log("Find Attachment with extension - File content type: %s - File name: %s" % (
-                    attachment.get_content_type(), attachment.get_filename()))
+            else:
                 self.checkFileforVBA(raw_data, filename, msg)
 
             i = i + 1
 
-    def checkFileforVBA(self, data, filename, msg):
-        '''
-            Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
-        '''
-        # parse the data if it is file extension
-
-        # Get sender name <SENERNAME>
-        msg_from = re.findall('<([^"]*)>', msg['From'])
-
-        # check sender name and return if at the whitelist
-        if self.check_name(str(msg_from)):
-            self.log("Whitelisted user %s - accept all attachments" % (msg_from))
-            self.attachment_contains_macro = False
-            return
-
-        # if sender is not whitelisted
-
+    def fileHasAlreadyBeenParsed(self, data):
         # generate Hash from file
         hash_data = hashlib.md5(data).hexdigest()
         # check if file is already parsed
         if hash_data in hashtable:
             self.log("Attachment %s already parsed ! REJECT" % hash_data)
-            self.attachment_contains_macro = True  # reject
+            return True
+        else:
+            return False
+
+    def addHashOfInfectedFileToDbAndFile(self, data):
+        hash_data = hashlib.md5(data).hexdigest()
+        hashtable.add(hash_data)
+        hash_to_write.put(hash_data)
+
+        self.log("File Added %s" % hash_data)
+
+    def checkFileforVBA(self, data, filename, msg):
+        '''
+            Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
+        '''
+        if not filename.lower().endswith(FILE_EXTENSION):
+            return
+        self.log("Attachment with matching file extension found: %s" % (filename))
+
+        if self.fileHasAlreadyBeenParsed(data):
+            self.attachment_contains_macro = True
             return
 
         # sent to VBA parser
@@ -297,10 +297,9 @@ class MacroMilter(MacroMilterBase):
                 report_logfile_handle.close()
 
                 # REJECT message and add to db file and memory
-                hashtable.add(hash_data)
-                hash_to_write.put(hash_data)
                 self.log("Message rejected with Level: %d" % self.level)
-                self.log("File Added %s" % hash_data)
+                self.addHashOfInfectedFileToDbAndFile(data)
+
                 self.attachment_contains_macro = True  # reject
                 # if level is lower than configured
                 return
@@ -310,10 +309,14 @@ class MacroMilter(MacroMilterBase):
                     self.attachment_contains_macro = False
                     return
 
+
+
     def checkZIPforVBA(self, data, filename, msg):
         '''
             Checks a zip for parsesable files and send to the parser
         '''
+        self.log("Find Attachment with archive extension - File name: %s" % (filename))
+
         file_object = StringIO.StringIO(data)
         # self.size = len(StringIO(data))
         # print "Size:"+self.size
@@ -325,13 +328,20 @@ class MacroMilter(MacroMilterBase):
                 # send to the checkFile
                 self.checkFileforVBA(zip_data, zip_name, msg)
 
-    def check_name(self, sender):
+    def sender_is_in_whitelist(self, msg):
         '''
             Lookup if the sender is at the whitelist - @domains.com must be supported
         '''
+        sender = ''
+        msg_from = msg['From']
+        if msg_from is not None:
+            sender = str(re.findall('<([^"]*)>', msg_from ))
+
         if WhiteList is not None:
             for name in WhiteList:
-                if re.search(name, sender) and not name.startswith("#"): return True
+                if re.search(name, sender) and not name.startswith("#"):
+                    self.log("Whitelisted user %s - accept all attachments" % (msg_from))
+                    return True
         return False
 
     def doc_parsing(self, filename, filecontent):
@@ -429,8 +439,6 @@ def initialize_async_process_queues(queuesize = 4):
     extension_data = Queue(maxsize=queuesize) if (extension_data == None) else extension_data
     hash_to_write = Queue(maxsize=queuesize) if (hash_to_write == None) else extension_data
     hashtable = Set()
-    ## immutable state
-    WhiteList = None
 
 
 def create_and_start_worker_threads():
@@ -513,7 +521,7 @@ def WhiteListLoad():
         Function to load the data form the WhiteList file and load into memory
     '''
     global WhiteList
-    with open(CFG_DIR + 'whitelist.list') as f:
+    with open(WHITELIST_FILE) as f:
         WhiteList = f.read().splitlines()
 
 

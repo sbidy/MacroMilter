@@ -6,6 +6,11 @@ import sys
 
 
 from test_classes import TestBase
+from test_classes import TEST_FOLDER
+
+MAIL_WITH_INFECTED_WORD = "02_mail_with_infected_word_document.eml"
+
+MAIL_WITH_INFECTED_ZIP = "03_mail_with_infected_word_in_zip.eml"
 
 sys.path.insert(0, os.path.abspath('..'))
 
@@ -36,6 +41,7 @@ def macromilterSUT(request):
     def tear_down():
         # clear queues
         macromilter.cleanup_queues()
+        macromilter.WhiteList = ()
         print "tear down called"
 
 
@@ -45,28 +51,39 @@ def macromilterSUT(request):
     return sut
 
 
+class MacroMilterBaseTest:
 
-class TestErrorFallback:
+    def loadTestMailInto(self, sut, test_mailfile):
+        testMailFileHandle = open(TEST_MAIL_FOLDER + "/"+ test_mailfile)
+        mailContent = testMailFileHandle.read()
+        testMailFileHandle.close()
+        sut.messageToParse.write(mailContent)
+
+
+
+
+
+
+class TestMilterAnswerHandling(MacroMilterBaseTest):
     def test_EmptyMessageShouldFallbackToAccept(self, macromilterSUT):
 
         result = macromilterSUT.parseAndCheckMessageAttachment()
         assert result == Milter.ACCEPT
 
     def test_milterMailWithoutAttachmentShouldAccept(self, macromilterSUT):
-
         self.loadTestMailInto(macromilterSUT, "01_mail_without_attachment.eml")
         result = macromilterSUT.parseAndCheckMessageAttachment()
         assert result == Milter.ACCEPT
 
     def test_matchWordFileShouldReject(self, macromilterSUT):
-        self.loadTestMailInto(macromilterSUT, "02_mail_with_infected_word_document.eml")
+        self.loadTestMailInto(macromilterSUT, MAIL_WITH_INFECTED_WORD)
         result = macromilterSUT.parseAndCheckMessageAttachment()
         assert macromilterSUT.attachment_contains_macro == True
         assert result == Milter.REJECT
 
 
     def test_matchZipWithInfectedWordFileShouldReject(self, macromilterSUT):
-        self.loadTestMailInto(macromilterSUT, "03_mail_with_infected_word_in_zip.eml")
+        self.loadTestMailInto(macromilterSUT, MAIL_WITH_INFECTED_ZIP)
 
         result = macromilterSUT.parseAndCheckMessageAttachment()
         assert macromilterSUT.attachment_contains_macro == True
@@ -90,19 +107,61 @@ class TestErrorFallback:
         assert macromilterSUT.attachment_contains_macro == True
         assert result == Milter.REJECT
 
-
+    def test_matchSameInfectedWordFileTwiceShouldStillReject(self, macromilterSUT):
+        self.loadTestMailInto(macromilterSUT, MAIL_WITH_INFECTED_WORD)
+        result = macromilterSUT.parseAndCheckMessageAttachment()
+        assert macromilterSUT.attachment_contains_macro == True
+        assert result == Milter.REJECT
+        # check it a second time to test hashing of matched files
+        result = macromilterSUT.parseAndCheckMessageAttachment()
+        assert macromilterSUT.attachment_contains_macro == True
+        assert result == Milter.REJECT
 
     # zip with zip having infected word
 
     # zip with zip having clean word
+class TestWhiteListing(MacroMilterBaseTest):
 
-    def loadTestMailInto(self, sut, test_mailfile):
-        testMailFileHandle = open(TEST_MAIL_FOLDER + "/"+ test_mailfile)
-        mailContent = testMailFileHandle.read()
-        testMailFileHandle.close()
-        sut.messageToParse.write(mailContent)
+    whitelistedSenderAddress = 'DawsonCraig0460@sbb.rs'
+    # match with whitelist
+    def test_cleanWordAndSenderIsInWhiteListShouldPass(self, macromilterSUT):
+        pass
+
+    def test_matchWordButSenderIsInWhiteListShouldPass(self, macromilterSUT):
+        self.loadTestMailInto(macromilterSUT, MAIL_WITH_INFECTED_WORD)
+        macromilter.WhiteList = (self.whitelistedSenderAddress)
+        result = macromilterSUT.parseAndCheckMessageAttachment()
+        assert result == Milter.ACCEPT
+
+    def test_matchZipButSenderIsInWhiteListShouldPass(self, macromilterSUT):
+        self.loadTestMailInto(macromilterSUT, MAIL_WITH_INFECTED_ZIP)
+        macromilter.WhiteList = [self.whitelistedSenderAddress]
+        result = macromilterSUT.parseAndCheckMessageAttachment()
+        assert result == Milter.ACCEPT
+
+    def test_SenderNotInWhitelistShouldReject(self, macromilterSUT):
+        self.loadTestMailInto(macromilterSUT, MAIL_WITH_INFECTED_ZIP)
+        macromilter.WhiteList = ["other@example.de"]
+        result = macromilterSUT.parseAndCheckMessageAttachment()
+        assert result == Milter.REJECT
+
+    def test_LoadWhitelistFromFileShouldPass(self, macromilterSUT):
+        self.initializeTestWhitelistFileWith(['hallo@welt.de', self.whitelistedSenderAddress])
+        macromilter.WhiteListLoad()
+
+        self.loadTestMailInto(macromilterSUT, MAIL_WITH_INFECTED_ZIP)
+        result = macromilterSUT.parseAndCheckMessageAttachment()
+        assert result == Milter.ACCEPT
 
 
+    def initializeTestWhitelistFileWith(self, address_to_whitelist):
+        macromilter.WHITELIST_FILE = TEST_FOLDER + 'whitelist.list'
+        with open(macromilter.WHITELIST_FILE, 'a+') as f:
+            f.seek(0)
+            f.truncate()
+            for address in address_to_whitelist:
+             f.writelines(address + '\n')
+            f.close()
 
 # testSendCleanDocumentShouldPass
 

@@ -11,13 +11,15 @@ import os
 
 Milter.NOREPLY = Milter.CONTINUE
 
+TEST_FOLDER = 'test_output/'
+
 ## Test mixin for unit testing %milter applications.
 # This mixin overrides many Milter.MilterBase methods
 # with stub versions that simply record what was done.
 # @since 0.9.8
 class TestBase(object):
 
-  def __init__(self,logfile='test_output/milter.log'):
+  def __init__(self,logfile= TEST_FOLDER + 'milter.log'):
     self._protocol = 0
     self.mkdir_p("test_output")
     self.logfp = open(logfile,"a")
