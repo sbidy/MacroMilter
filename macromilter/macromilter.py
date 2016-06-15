@@ -217,9 +217,6 @@ class MacroMilter(MacroMilterBase):
 
         self.attachment_contains_macro = False
 
-
-
-        # check sender name and return if at the whitelist
         if self.sender_is_in_whitelist(msg):
             self.attachment_contains_macro = False
         else:
@@ -248,29 +245,39 @@ class MacroMilter(MacroMilterBase):
 
             # parse if the file is a zip
             if (filename.lower().endswith(ZIP_EXTENSIONS)):
-                self.log("Find Attachment with extension - File content type: %s - File name: %s" % (
-                    attachment.get_content_type(), attachment.get_filename()))
-
                 self.checkZIPforVBA(raw_data, filename, msg)
-            if (filename.lower().endswith(FILE_EXTENSION)):
-                self.log("Find Attachment with extension - File content type: %s - File name: %s" % (
-                    attachment.get_content_type(), attachment.get_filename()))
+            else:
                 self.checkFileforVBA(raw_data, filename, msg)
 
             i = i + 1
 
-    def checkFileforVBA(self, data, filename, msg):
-        '''
-            Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
-        '''
-        # parse the data if it is file extension
-
+    def fileHasAlreadyBeenParsed(self, data):
         # generate Hash from file
         hash_data = hashlib.md5(data).hexdigest()
         # check if file is already parsed
         if hash_data in hashtable:
             self.log("Attachment %s already parsed ! REJECT" % hash_data)
-            self.attachment_contains_macro = True  # reject
+            return True
+        else:
+            return False
+
+    def addHashOfInfectedFileToDbAndFile(self, data):
+        hash_data = hashlib.md5(data).hexdigest()
+        hashtable.add(hash_data)
+        hash_to_write.put(hash_data)
+
+        self.log("File Added %s" % hash_data)
+
+    def checkFileforVBA(self, data, filename, msg):
+        '''
+            Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
+        '''
+        if not filename.lower().endswith(FILE_EXTENSION):
+            return
+        self.log("Attachment with matching file extension found: %s" % (filename))
+
+        if self.fileHasAlreadyBeenParsed(data):
+            self.attachment_contains_macro = True
             return
 
         # sent to VBA parser
@@ -290,10 +297,9 @@ class MacroMilter(MacroMilterBase):
                 report_logfile_handle.close()
 
                 # REJECT message and add to db file and memory
-                hashtable.add(hash_data)
-                hash_to_write.put(hash_data)
                 self.log("Message rejected with Level: %d" % self.level)
-                self.log("File Added %s" % hash_data)
+                self.addHashOfInfectedFileToDbAndFile(data)
+
                 self.attachment_contains_macro = True  # reject
                 # if level is lower than configured
                 return
@@ -303,10 +309,14 @@ class MacroMilter(MacroMilterBase):
                     self.attachment_contains_macro = False
                     return
 
+
+
     def checkZIPforVBA(self, data, filename, msg):
         '''
             Checks a zip for parsesable files and send to the parser
         '''
+        self.log("Find Attachment with archive extension - File name: %s" % (filename))
+
         file_object = StringIO.StringIO(data)
         # self.size = len(StringIO(data))
         # print "Size:"+self.size

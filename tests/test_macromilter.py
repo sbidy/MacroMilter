@@ -107,7 +107,15 @@ class TestMilterAnswerHandling(MacroMilterBaseTest):
         assert macromilterSUT.attachment_contains_macro == True
         assert result == Milter.REJECT
 
-
+    def test_matchSameInfectedWordFileTwiceShouldStillReject(self, macromilterSUT):
+        self.loadTestMailInto(macromilterSUT, MAIL_WITH_INFECTED_WORD)
+        result = macromilterSUT.parseAndCheckMessageAttachment()
+        assert macromilterSUT.attachment_contains_macro == True
+        assert result == Milter.REJECT
+        # check it a second time to test hashing of matched files
+        result = macromilterSUT.parseAndCheckMessageAttachment()
+        assert macromilterSUT.attachment_contains_macro == True
+        assert result == Milter.REJECT
 
     # zip with zip having infected word
 
