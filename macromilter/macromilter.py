@@ -76,6 +76,7 @@ SOCKET = "inet:3690@127.0.0.1"  # bind to unix or tcp socket "inet:port@ip" or "
 TIMEOUT = 30  # Milter timeout in seconds
 CFG_DIR = "/etc/macromilter/"
 LOG_DIR = "/var/log/macromilter/"
+WHITELIST_FILE = CFG_DIR + "whitelist.list"
 MESSAGE = "ERROR = Attachment contains unallowed office macros!"
 
 
@@ -214,18 +215,23 @@ class MacroMilter(MacroMilterBase):
         # https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
         self.setreply('550', '5.7.1', MESSAGE)
 
-        # return if no attachment
-        if len(msg.get_payload()) < 2:
-            return Milter.ACCEPT
-        # if attachment get name
+        self.attachment_contains_macro = False
 
-        self.checkAttachment(msg)
 
-        if not self.attachment_contains_macro:
-            # Nothing found
-            return Milter.ACCEPT
+
+        # check sender name and return if at the whitelist
+        if self.sender_is_in_whitelist(msg):
+            self.attachment_contains_macro = False
+        else:
+            if len(msg.get_payload()) >= 2:
+                self.checkAttachment(msg)
+
+
         if self.attachment_contains_macro:
             return Milter.REJECT
+        else:
+            return Milter.ACCEPT
+
 
     def checkAttachment(self, msg):
         i = 1
@@ -235,8 +241,6 @@ class MacroMilter(MacroMilterBase):
             filename = attachment.get_filename()
 
             if filename is None:
-                if not self.attachment_contains_macro:
-                    self.attachment_contains_macro = False
                 i = i + 1
                 continue
 
@@ -260,17 +264,6 @@ class MacroMilter(MacroMilterBase):
             Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
         '''
         # parse the data if it is file extension
-
-        # Get sender name <SENERNAME>
-        msg_from = re.findall('<([^"]*)>', msg['From'])
-
-        # check sender name and return if at the whitelist
-        if self.check_name(str(msg_from)):
-            self.log("Whitelisted user %s - accept all attachments" % (msg_from))
-            self.attachment_contains_macro = False
-            return
-
-        # if sender is not whitelisted
 
         # generate Hash from file
         hash_data = hashlib.md5(data).hexdigest()
@@ -325,13 +318,20 @@ class MacroMilter(MacroMilterBase):
                 # send to the checkFile
                 self.checkFileforVBA(zip_data, zip_name, msg)
 
-    def check_name(self, sender):
+    def sender_is_in_whitelist(self, msg):
         '''
             Lookup if the sender is at the whitelist - @domains.com must be supported
         '''
+        sender = ''
+        msg_from = msg['From']
+        if msg_from is not None:
+            sender = str(re.findall('<([^"]*)>', msg_from ))
+
         if WhiteList is not None:
             for name in WhiteList:
-                if re.search(name, sender) and not name.startswith("#"): return True
+                if re.search(name, sender) and not name.startswith("#"):
+                    self.log("Whitelisted user %s - accept all attachments" % (msg_from))
+                    return True
         return False
 
     def doc_parsing(self, filename, filecontent):
@@ -429,8 +429,6 @@ def initialize_async_process_queues(queuesize = 4):
     extension_data = Queue(maxsize=queuesize) if (extension_data == None) else extension_data
     hash_to_write = Queue(maxsize=queuesize) if (hash_to_write == None) else extension_data
     hashtable = Set()
-    ## immutable state
-    WhiteList = None
 
 
 def create_and_start_worker_threads():
@@ -513,7 +511,7 @@ def WhiteListLoad():
         Function to load the data form the WhiteList file and load into memory
     '''
     global WhiteList
-    with open(CFG_DIR + 'whitelist.list') as f:
+    with open(WHITELIST_FILE) as f:
         WhiteList = f.read().splitlines()
 
 
