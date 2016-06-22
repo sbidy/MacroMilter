@@ -76,6 +76,7 @@ SOCKET = "inet:3690@127.0.0.1"  # bind to unix or tcp socket "inet:port@ip" or "
 TIMEOUT = 30  # Milter timeout in seconds
 CFG_DIR = "/etc/macromilter/"
 LOG_DIR = "/var/log/macromilter/"
+MATCHED_FILE_LOG_DIR = LOG_DIR + "/matched_files/"
 WHITELIST_FILE = CFG_DIR + "whitelist.list"
 MESSAGE = "ERROR = Attachment contains unallowed office macros!"
 
@@ -281,20 +282,19 @@ class MacroMilter(MacroMilterBase):
             return
 
         # sent to VBA parser
-        report = self.doc_parsing(filename, data)
-        self.log("VBA parsing exit")
+        parsing_result = self.inspect_vba_data(filename, data)
+
         # Save log to disk and return reject because attachment contains vba Macro
-        if report is not None:
+        if parsing_result is not None:
             # check if reject level is reached
+            self.level = parsing_result[0]
+            report = parsing_result[1]
+
             if self.level > REJECTLEVEL:
                 # generate report for logfile >> <filename>.<extenstion>.log
                 report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
                 # write log
-                filename = filename + '.log'
-                self.mkdir_p(LOG_DIR + "log/")
-                report_logfile_handle = open(LOG_DIR + "log/" + filename, 'w')
-                report_logfile_handle.write(report)
-                report_logfile_handle.close()
+                self.writeMatchedVba2Logfile(filename, report)
 
                 # REJECT message and add to db file and memory
                 self.log("Message rejected with Level: %d" % self.level)
@@ -309,7 +309,12 @@ class MacroMilter(MacroMilterBase):
                     self.attachment_contains_macro = False
                     return
 
-
+    def writeMatchedVba2Logfile(self, filename, report):
+        filename = filename + '.log'
+        self.mkdir_p(MATCHED_FILE_LOG_DIR)
+        report_logfile_handle = open(MATCHED_FILE_LOG_DIR + filename, 'w')
+        report_logfile_handle.write(report)
+        report_logfile_handle.close()
 
     def checkZIPforVBA(self, data, filename, msg):
         '''
@@ -344,42 +349,42 @@ class MacroMilter(MacroMilterBase):
                     return True
         return False
 
-    def doc_parsing(self, filename, filecontent):
+    def inspect_vba_data(self, filename, filecontent):
         '''
             Function to parse the given data in mail content
         '''
-        mil_attach = ''  # reset var
+        vbaparser_report_log = ''  # reset var
         # send data to vba parser
         vbaparser = VBA_Parser(filename, data=filecontent)
         # if a macro is detected
-        if vbaparser.detect_vba_macros():
+        if not vbaparser.detect_vba_macros():
+            self.log("VBA no Macros found in file")
+            vbaparser.close()
+            return None  # nothing found
+        else:
             results = vbaparser.analyze_macros()
             nr = 1
             self.log("VBA Macros found")
             # generate report for log file
             for kw_type, keyword, description in results:
                 if kw_type == 'Suspicious':
-                    mil_attach += 'Macro Number %i:\n Type: %s\n Keyword: %s\n Description: %s\n' % (
+                    vbaparser_report_log += 'Macro Number %i:\n Type: %s\n Keyword: %s\n Description: %s\n' % (
                     nr, kw_type, keyword, description)
                 nr += 1
-            mil_attach += '\nSummery:\nAutoExec keywords: %d\n' % vbaparser.nb_autoexec
-            mil_attach += 'Suspicious keywords: %d\n' % vbaparser.nb_suspicious
-            mil_attach += 'IOCs: %d\n' % vbaparser.nb_iocs
-            mil_attach += 'Hex obfuscated strings: %d\n' % vbaparser.nb_hexstrings
-            mil_attach += 'Base64 obfuscated strings: %d\n' % vbaparser.nb_base64strings
-            mil_attach += 'Dridex obfuscated strings: %d\n' % vbaparser.nb_dridexstrings
-            mil_attach += 'VBA obfuscated strings: %d' % vbaparser.nb_vbastrings
+            vbaparser_report_log += '\nSummery:\nAutoExec keywords: %d\n' % vbaparser.nb_autoexec
+            vbaparser_report_log += 'Suspicious keywords: %d\n' % vbaparser.nb_suspicious
+            vbaparser_report_log += 'IOCs: %d\n' % vbaparser.nb_iocs
+            vbaparser_report_log += 'Hex obfuscated strings: %d\n' % vbaparser.nb_hexstrings
+            vbaparser_report_log += 'Base64 obfuscated strings: %d\n' % vbaparser.nb_base64strings
+            vbaparser_report_log += 'Dridex obfuscated strings: %d\n' % vbaparser.nb_dridexstrings
+            vbaparser_report_log += 'VBA obfuscated strings: %d' % vbaparser.nb_vbastrings
 
             r_level = vbaparser.nb_autoexec + vbaparser.nb_suspicious + vbaparser.nb_iocs + vbaparser.nb_hexstrings + vbaparser.nb_base64strings + vbaparser.nb_dridexstrings + vbaparser.nb_vbastrings
 
             # set reject level to global
-            self.level = r_level
+            #self.level = r_level
             vbaparser.close()
-            return mil_attach  # return the log to caller
-        else:
-            self.log("VBA no Macros found in file")
-            vbaparser.close()
-            return None  # nothing found
+            return [r_level, vbaparser_report_log]  # return the log to caller
 
         ## === Support Functions ===
 

@@ -25,6 +25,7 @@ thread_pool = []
 def macromilterSUT(request):
 
     macromilter.LOG_DIR = 'test_output/'
+    macromilter.MATCHED_FILE_LOG_DIR = 'test_output/matched_files/'
     macromilter.initialize_async_process_queues(20)
     macromilter.cleanup_queues()
 
@@ -42,9 +43,6 @@ def macromilterSUT(request):
         # clear queues
         macromilter.cleanup_queues()
         macromilter.WhiteList = ()
-        print "tear down called"
-
-
 
     request.addfinalizer(tear_down)
 
