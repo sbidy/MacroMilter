@@ -19,6 +19,7 @@
 ## 2.9 - 20.05.2016 sbidy - Fix issue #6 - queue not empty after log fiel cant written, write extension data to file deleted
 ## 2.9.1 - 20.05.2016 sbidy - Additional fixes for #6
 ## 2.9.2 - 27.06.2016 sbidy - Add changes from heinrichheine and merge to master
+## 3.0 - 27.06.2016 heinrichheine/sbidy - Tested and updated version, some fixes added
 
 # The MIT License (MIT)
 
@@ -41,6 +42,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+
 from _socket import AF_INET6
 
 import Milter
@@ -72,9 +74,10 @@ from Queue import Empty
 FILE_EXTENSION = ('.rtf', '.xls', '.doc', '.docm', '.xlsm')  # lower letter !!
 ZIP_EXTENSIONS = ('.zip')
 MAX_FILESIZE = 50000000  # ~50MB
-__version__ = '2.8.1'  # version
+__version__ = '3.0'  # version
 REJECTLEVEL = 5  # Defines the max Macro Level (normal files < 10 // suspicious files > 10)
 # at postfix smtpd_milters = inet:127.0.0.1:3690
+
 SOCKET = "inet:3690@127.0.0.1"  # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
 TIMEOUT = 30  # Milter timeout in seconds
 CFG_DIR = "/etc/macromilter/"
@@ -95,7 +98,6 @@ WhiteList = None
 
 ## Customized milter class - partly copied from
 ## https://github.com/jmehnle/pymilter/blob/master/milter-template.py
-
 
 class MacroMilterBase(Milter.Base):
 	'''Base class for MacroMilter to move boilerplate connection stuff away from the real
@@ -172,7 +174,6 @@ class MacroMilterBase(Milter.Base):
 				pass
 			else:
 				raise
-
 
 class MacroMilter(MacroMilterBase):
 	'''See MacroMilterBase for milter connection handling'''
@@ -297,7 +298,8 @@ class MacroMilter(MacroMilterBase):
 				# generate report for logfile >> <filename>.<extenstion>.log
 				report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
 				# write log
-				self.writeMatchedVba2Logfile(filename, report)
+				# disabled and discontinued in 3.1
+				# self.writeMatchedVba2Logfile(filename, report)
 
 				# REJECT message and add to db file and memory
 				self.log("Message rejected with Level: %d" % self.level)
@@ -381,7 +383,8 @@ class MacroMilter(MacroMilterBase):
 			vbaparser_report_log += 'Base64 obfuscated strings: %d\n' % vbaparser.nb_base64strings
 			vbaparser_report_log += 'Dridex obfuscated strings: %d\n' % vbaparser.nb_dridexstrings
 			vbaparser_report_log += 'VBA obfuscated strings: %d' % vbaparser.nb_vbastrings
-
+			
+			# TBD: calculate a better level - add additional values to Base64 and Hex. No human writes such strings into code.
 			r_level = vbaparser.nb_autoexec + vbaparser.nb_suspicious + vbaparser.nb_iocs + vbaparser.nb_hexstrings + vbaparser.nb_base64strings + vbaparser.nb_dridexstrings + vbaparser.nb_vbastrings
 
 			# set reject level to global
@@ -431,7 +434,7 @@ def initialize_async_process_queues(queuesize = 4):
 
 
 def create_and_start_worker_threads():
-	#initialize_async_process_queues()
+	initialize_async_process_queues()
 	thread_pool = []
 	# create helper threads
 	thread_pool.append(Thread(target=listen_on_logqueue_and_write_logging_to_stdout))
