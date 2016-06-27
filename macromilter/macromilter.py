@@ -15,7 +15,10 @@
 ## 2.6 - 08.03.2016 Gulaschcowboy - Added CFG_DIR, fixed some paths, added systemd.service, Readme.opensuse and logrotate script
 ## 2.7 - 18.03.2016 sbidy - Added rtf to file list
 ## 2.8 - 29.03.2016 sbidy - Added some major fixes and code cleanup, added the zip extraction for .zip files regrading issue #5
-## 2.8.1 - 30.03.2016 sbidy - Fix the str-exception, added some logging infomations
+## 2.8.1 - 30.03.2016 sbidy - Fix the str-exception, added some logging informations
+## 2.9 - 20.05.2016 sbidy - Fix issue #6 - queue not empty after log fiel cant written, write extension data to file deleted
+## 2.9.1 - 20.05.2016 sbidy - Additional fixes for #6
+## 2.9.2 - 27.06.2016 sbidy - Add changes from heinrichheine and merge to master
 
 # The MIT License (MIT)
 
@@ -59,10 +62,10 @@ from socket import AF_INET6
 from Milter.utils import parse_addr
 
 if True:
-    from multiprocessing import Process as Thread, Queue
+	from multiprocessing import Process as Thread, Queue
 else:
-    from threading import Thread
-    from Queue import Queue
+	from threading import Thread
+	from Queue import Queue
 from Queue import Empty
 
 ## Config (finals)
@@ -95,477 +98,458 @@ WhiteList = None
 
 
 class MacroMilterBase(Milter.Base):
-    '''Base class for MacroMilter to move boilerplate connection stuff away from the real
-        business logic for macro parsing
-    '''
-    def __init__(self):  # A new instance with each new connection.
-        self.id = Milter.uniqueID()  # Integer incremented with each call.
-        self.messageToParse = None
-        self.level = 0
-        self.headercount = 0
-        self.attachment_contains_macro = False
-        self.size = 0
+	'''Base class for MacroMilter to move boilerplate connection stuff away from the real
+		business logic for macro parsing
+	'''
+	def __init__(self):  # A new instance with each new connection.
+		self.id = Milter.uniqueID()  # Integer incremented with each call.
+		self.messageToParse = None
+		self.level = 0
+		self.headercount = 0
+		self.attachment_contains_macro = False
+		self.size = 0
 
-    @Milter.noreply
-    def connect(self, IPname, family, hostaddr):
+	@Milter.noreply
+	def connect(self, IPname, family, hostaddr):
 
-        # define all vars
-        self.IP = hostaddr[0]
-        self.port = hostaddr[1]
-        if family == AF_INET6:
-            self.flow = hostaddr[2]
-            self.scope = hostaddr[3]
-        else:
-            self.flow = None
-            self.scope = None
-        self.IPname = IPname  # Name from a reverse IP lookup
-        self.messageToParse = None  # content
-        # self.log("connect from %s at %s" % (IPname, hostaddr)) # for logging
-        return Milter.CONTINUE
+		# define all vars
+		self.IP = hostaddr[0]
+		self.port = hostaddr[1]
+		if family == AF_INET6:
+			self.flow = hostaddr[2]
+			self.scope = hostaddr[3]
+		else:
+			self.flow = None
+			self.scope = None
+		self.IPname = IPname  # Name from a reverse IP lookup
+		self.messageToParse = None  # content
+		# self.log("connect from %s at %s" % (IPname, hostaddr)) # for logging
+		return Milter.CONTINUE
 
-    @Milter.noreply
-    def envfrom(self, mailfrom, *str):
-        self.messageToParse = StringIO.StringIO()
-        self.canon_from = '@'.join(parse_addr(mailfrom))
-        self.messageToParse.write('From %s %s\n' % (self.canon_from, time.ctime()))
-        return Milter.CONTINUE
+	@Milter.noreply
+	def envfrom(self, mailfrom, *str):
+		self.messageToParse = StringIO.StringIO()
+		self.canon_from = '@'.join(parse_addr(mailfrom))
+		self.messageToParse.write('From %s %s\n' % (self.canon_from, time.ctime()))
+		return Milter.CONTINUE
 
-    @Milter.noreply
-    def envrcpt(self, to, *str):
-        return Milter.CONTINUE
+	@Milter.noreply
+	def envrcpt(self, to, *str):
+		return Milter.CONTINUE
 
-    @Milter.noreply
-    def header(self, header_field, header_field_value):
-        self.messageToParse.write("%s: %s\n" % (header_field, header_field_value))
-        self.headcount = self.headercount + 1
-        return Milter.CONTINUE
+	@Milter.noreply
+	def header(self, header_field, header_field_value):
+		self.messageToParse.write("%s: %s\n" % (header_field, header_field_value))
+		self.headcount = self.headercount + 1
+		return Milter.CONTINUE
 
-    @Milter.noreply
-    def eoh(self):
-        self.messageToParse.write("\n")
-        return Milter.CONTINUE
+	@Milter.noreply
+	def eoh(self):
+		self.messageToParse.write("\n")
+		return Milter.CONTINUE
 
-    @Milter.noreply
-    def body(self, chunk):
-        self.messageToParse.write(chunk)
-        return Milter.CONTINUE
+	@Milter.noreply
+	def body(self, chunk):
+		self.messageToParse.write(chunk)
+		return Milter.CONTINUE
 
-    def close(self):
-        # stop timer at close
-        return Milter.CONTINUE
+	def close(self):
+		# stop timer at close
+		return Milter.CONTINUE
 
-    def abort(self):
-        # nothing to clean up
-        return Milter.CONTINUE
+	def abort(self):
+		# nothing to clean up
+		return Milter.CONTINUE
 
-    def log(self, *msg):
-        logq.put((msg, self.id, time.time()))
+	def log(self, *msg):
+		logq.put((msg, self.id, time.time()))
 
-    def mkdir_p(self, path):
-        try:
-            os.makedirs(path)
-        except OSError as exc:  # Python >2.5
-            if exc.errno == errno.EEXIST and os.path.isdir(path):
-                pass
-            else:
-                raise
+	def mkdir_p(self, path):
+		try:
+			os.makedirs(path)
+		except OSError as exc:  # Python >2.5
+			if exc.errno == errno.EEXIST and os.path.isdir(path):
+				pass
+			else:
+				raise
 
 
 class MacroMilter(MacroMilterBase):
-    '''See MacroMilterBase for milter connection handling'''
+	'''See MacroMilterBase for milter connection handling'''
 
-    # end of file - run the parser
-    def eom(self):
-        '''This method is called when the end of the email message has been reached.
-           This event also triggers the milter specific actions
-        '''
-        try:
-            # set data pointer back to 0
-            self.messageToParse.seek(0)
-            # start the timer
-            self.start = time.time()  # start timer for performance measuring
-            # call the data parsing method
-            result = self.parseAndCheckMessageAttachment()
-            if result is not None:
-                # stop timer
-                self.end = time.time()
-                self.secs = self.end - self.start
-                self.addData(self.secs, self.level)
-                return result
-            else:
-                return Milter.ACCEPT
-                # if error make a fall-back to accept
-        except zipfile.BadZipfile, b:
-            self.log("Unexpected error - No zip File REJECT: %s" % sys.exc_value)
-            return Milter.REJECT
-        except Exception, a:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            self.log("Unexpected error - fall back to ACCEPT: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
-            return Milter.ACCEPT
+	# end of file - run the parser
+	def eom(self):
+		'''This method is called when the end of the email message has been reached.
+		   This event also triggers the milter specific actions
+		'''
+		try:
+			# set data pointer back to 0
+			self.messageToParse.seek(0)
+			# start the timer
+			self.start = time.time()  # start timer for performance measuring
+			# call the data parsing method
+			result = self.parseAndCheckMessageAttachment()
+			if result is not None:
+				# stop timer
+				self.end = time.time()
+				self.secs = self.end - self.start
+				self.addData(self.secs, self.level)
+				return result
+			else:
+				return Milter.ACCEPT
+				# if error make a fall-back to accept
+		except zipfile.BadZipfile, b:
+			self.log("Unexpected error - No zip File REJECT: %s" % sys.exc_value)
+			return Milter.REJECT
+		except Exception, a:
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			self.log("Unexpected error - fall back to ACCEPT: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
+			return Milter.ACCEPT
 
-    ## ==== Data processing ====
+	## ==== Data processing ====
 
-    def parseAndCheckMessageAttachment(self):
-        '''
-            parse the whole email data an check if there is a attachment
-        '''
-        # use email from package email to parse the message string
-        msg = email.message_from_string(self.messageToParse.getvalue())
-        # Set Reject Message - definition from here
-        # https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
-        self.setreply('550', '5.7.1', MESSAGE)
+	def parseAndCheckMessageAttachment(self):
+		'''
+			parse the whole email data an check if there is a attachment
+		'''
+		# use email from package email to parse the message string
+		msg = email.message_from_string(self.messageToParse.getvalue())
+		# Set Reject Message - definition from here
+		# https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
+		self.setreply('550', '5.7.1', MESSAGE)
 
-        self.attachment_contains_macro = False
+		self.attachment_contains_macro = False
 
-        if self.sender_is_in_whitelist(msg):
-            self.attachment_contains_macro = False
-        else:
-            if len(msg.get_payload()) >= 2:
-                self.checkAttachment(msg)
-
-
-        if self.attachment_contains_macro:
-            return Milter.REJECT
-        else:
-            return Milter.ACCEPT
+		if self.sender_is_in_whitelist(msg):
+			self.attachment_contains_macro = False
+		else:
+			if len(msg.get_payload()) >= 2:
+				self.checkAttachment(msg)
 
 
-    def checkAttachment(self, msg):
-        i = 1
-        while len(msg.get_payload()) > i:
+		if self.attachment_contains_macro:
+			return Milter.REJECT
+		else:
+			return Milter.ACCEPT
 
-            attachment = msg.get_payload()[i]
-            filename = attachment.get_filename()
 
-            if filename is None:
-                i = i + 1
-                continue
+	def checkAttachment(self, msg):
+		i = 1
+		while len(msg.get_payload()) > i:
 
-            raw_data = attachment.get_payload(decode=True)
+			attachment = msg.get_payload()[i]
+			filename = attachment.get_filename()
 
-            # parse if the file is a zip
-            if (filename.lower().endswith(ZIP_EXTENSIONS)):
-                self.checkZIPforVBA(raw_data, filename, msg)
-            else:
-                self.checkFileforVBA(raw_data, filename, msg)
+			if filename is None:
+				i = i + 1
+				continue
 
-            i = i + 1
+			raw_data = attachment.get_payload(decode=True)
 
-    def fileHasAlreadyBeenParsed(self, data):
-        # generate Hash from file
-        hash_data = hashlib.md5(data).hexdigest()
-        # check if file is already parsed
-        if hash_data in hashtable:
-            self.log("Attachment %s already parsed ! REJECT" % hash_data)
-            return True
-        else:
-            return False
+			# parse if the file is a zip
+			if (filename.lower().endswith(ZIP_EXTENSIONS)):
+				self.checkZIPforVBA(raw_data, filename, msg)
+			else:
+				self.checkFileforVBA(raw_data, filename, msg)
 
-    def addHashOfInfectedFileToDbAndFile(self, data):
-        hash_data = hashlib.md5(data).hexdigest()
-        hashtable.add(hash_data)
-        hash_to_write.put(hash_data)
+			i = i + 1
 
-        self.log("File Added %s" % hash_data)
+	def fileHasAlreadyBeenParsed(self, data):
+		# generate Hash from file
+		hash_data = hashlib.md5(data).hexdigest()
+		# check if file is already parsed
+		if hash_data in hashtable:
+			self.log("Attachment %s already parsed ! REJECT" % hash_data)
+			return True
+		else:
+			return False
 
-    def checkFileforVBA(self, data, filename, msg):
-        '''
-            Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
-        '''
-        if not filename.lower().endswith(FILE_EXTENSION):
-            return
-        self.log("Attachment with matching file extension found: %s" % (filename))
+	def addHashOfInfectedFileToDbAndFile(self, data):
+		hash_data = hashlib.md5(data).hexdigest()
+		hashtable.add(hash_data)
+		hash_to_write.put(hash_data)
 
-        if self.fileHasAlreadyBeenParsed(data):
-            self.attachment_contains_macro = True
-            return
+		self.log("File Added %s" % hash_data)
 
-        # sent to VBA parser
-        parsing_result = self.inspect_vba_data(filename, data)
+	def checkFileforVBA(self, data, filename, msg):
+		'''
+			Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
+		'''
+		if not filename.lower().endswith(FILE_EXTENSION):
+			return
+		self.log("Attachment with matching file extension found: %s" % (filename))
 
-        # Save log to disk and return reject because attachment contains vba Macro
-        if parsing_result is not None:
-            # check if reject level is reached
-            self.level = parsing_result[0]
-            report = parsing_result[1]
+		if self.fileHasAlreadyBeenParsed(data):
+			self.attachment_contains_macro = True
+			return
 
-            if self.level > REJECTLEVEL:
-                # generate report for logfile >> <filename>.<extenstion>.log
-                report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
-                # write log
-                self.writeMatchedVba2Logfile(filename, report)
+		# sent to VBA parser
+		parsing_result = self.inspect_vba_data(filename, data)
 
-                # REJECT message and add to db file and memory
-                self.log("Message rejected with Level: %d" % self.level)
-                self.addHashOfInfectedFileToDbAndFile(data)
+		# Save log to disk and return reject because attachment contains vba Macro
+		if parsing_result is not None:
+			# check if reject level is reached
+			self.level = parsing_result[0]
+			report = parsing_result[1]
 
-                self.attachment_contains_macro = True  # reject
-                # if level is lower than configured
-                return
-            else:
-                self.log("Message accepted with Level: %d - under configured threshold" % (self.level))
-                if not self.attachment_contains_macro:
-                    self.attachment_contains_macro = False
-                    return
+			if self.level > REJECTLEVEL:
+				# generate report for logfile >> <filename>.<extenstion>.log
+				report += "\n\nFrom:%s\nTo:%s\n" % (msg['FROM'], msg['To'])
+				# write log
+				self.writeMatchedVba2Logfile(filename, report)
 
-    def writeMatchedVba2Logfile(self, filename, report):
-        filename = filename + '.log'
-        self.mkdir_p(MATCHED_FILE_LOG_DIR)
-        report_logfile_handle = open(MATCHED_FILE_LOG_DIR + filename, 'w')
-        report_logfile_handle.write(report)
-        report_logfile_handle.close()
+				# REJECT message and add to db file and memory
+				self.log("Message rejected with Level: %d" % self.level)
+				self.addHashOfInfectedFileToDbAndFile(data)
 
-    def checkZIPforVBA(self, data, filename, msg):
-        '''
-            Checks a zip for parsesable files and send to the parser
-        '''
-        self.log("Find Attachment with archive extension - File name: %s" % (filename))
+				self.attachment_contains_macro = True  # reject
+				# if level is lower than configured
+				return
+			else:
+				self.log("Message accepted with Level: %d - under configured threshold" % (self.level))
+				if not self.attachment_contains_macro:
+					self.attachment_contains_macro = False
+					return
 
-        file_object = StringIO.StringIO(data)
-        # self.size = len(StringIO(data))
-        # print "Size:"+self.size
-        files_in_zip = self.extract_zip(file_object)
-        for zip_name, zip_data in files_in_zip.items():
-            # checks if it is a file
-            if zip_data and zip_name.lower().endswith(FILE_EXTENSION):
-                self.log("File in zip detected! Name: %s - check for VBA" % (zip_name))
-                # send to the checkFile
-                self.checkFileforVBA(zip_data, zip_name, msg)
+	def writeMatchedVba2Logfile(self, filename, report):
+		filename = filename + '.log'
+		self.mkdir_p(MATCHED_FILE_LOG_DIR)
+		report_logfile_handle = open(MATCHED_FILE_LOG_DIR + filename, 'w')
+		report_logfile_handle.write(report)
+		report_logfile_handle.close()
 
-    def sender_is_in_whitelist(self, msg):
-        '''
-            Lookup if the sender is at the whitelist - @domains.com must be supported
-        '''
-        sender = ''
-        msg_from = msg['From']
-        if msg_from is not None:
-            sender = str(re.findall('<([^"]*)>', msg_from ))
+	def checkZIPforVBA(self, data, filename, msg):
+		'''
+			Checks a zip for parsesable files and send to the parser
+		'''
+		self.log("Find Attachment with archive extension - File name: %s" % (filename))
 
-        if WhiteList is not None:
-            for name in WhiteList:
-                if re.search(name, sender) and not name.startswith("#"):
-                    self.log("Whitelisted user %s - accept all attachments" % (msg_from))
-                    return True
-        return False
+		file_object = StringIO.StringIO(data)
+		# self.size = len(StringIO(data))
+		# print "Size:"+self.size
+		files_in_zip = self.extract_zip(file_object)
+		for zip_name, zip_data in files_in_zip.items():
+			# checks if it is a file
+			if zip_data and zip_name.lower().endswith(FILE_EXTENSION):
+				self.log("File in zip detected! Name: %s - check for VBA" % (zip_name))
+				# send to the checkFile
+				self.checkFileforVBA(zip_data, zip_name, msg)
 
-    def inspect_vba_data(self, filename, filecontent):
-        '''
-            Function to parse the given data in mail content
-        '''
-        vbaparser_report_log = ''  # reset var
-        # send data to vba parser
-        vbaparser = VBA_Parser(filename, data=filecontent)
-        # if a macro is detected
-        if not vbaparser.detect_vba_macros():
-            self.log("VBA no Macros found in file")
-            vbaparser.close()
-            return None  # nothing found
-        else:
-            results = vbaparser.analyze_macros()
-            nr = 1
-            self.log("VBA Macros found")
-            # generate report for log file
-            for kw_type, keyword, description in results:
-                if kw_type == 'Suspicious':
-                    vbaparser_report_log += 'Macro Number %i:\n Type: %s\n Keyword: %s\n Description: %s\n' % (
-                    nr, kw_type, keyword, description)
-                nr += 1
-            vbaparser_report_log += '\nSummery:\nAutoExec keywords: %d\n' % vbaparser.nb_autoexec
-            vbaparser_report_log += 'Suspicious keywords: %d\n' % vbaparser.nb_suspicious
-            vbaparser_report_log += 'IOCs: %d\n' % vbaparser.nb_iocs
-            vbaparser_report_log += 'Hex obfuscated strings: %d\n' % vbaparser.nb_hexstrings
-            vbaparser_report_log += 'Base64 obfuscated strings: %d\n' % vbaparser.nb_base64strings
-            vbaparser_report_log += 'Dridex obfuscated strings: %d\n' % vbaparser.nb_dridexstrings
-            vbaparser_report_log += 'VBA obfuscated strings: %d' % vbaparser.nb_vbastrings
+	def sender_is_in_whitelist(self, msg):
+		'''
+			Lookup if the sender is at the whitelist - @domains.com must be supported
+		'''
+		sender = ''
+		msg_from = msg['From']
+		if msg_from is not None:
+			sender = str(re.findall('<([^"]*)>', msg_from ))
 
-            r_level = vbaparser.nb_autoexec + vbaparser.nb_suspicious + vbaparser.nb_iocs + vbaparser.nb_hexstrings + vbaparser.nb_base64strings + vbaparser.nb_dridexstrings + vbaparser.nb_vbastrings
+		if WhiteList is not None:
+			for name in WhiteList:
+				if re.search(name, sender) and not name.startswith("#"):
+					self.log("Whitelisted user %s - accept all attachments" % (msg_from))
+					return True
+		return False
 
-            # set reject level to global
-            #self.level = r_level
-            vbaparser.close()
-            return [r_level, vbaparser_report_log]  # return the log to caller
+	def inspect_vba_data(self, filename, filecontent):
+		'''
+			Function to parse the given data in mail content
+		'''
+		vbaparser_report_log = ''  # reset var
+		# send data to vba parser
+		vbaparser = VBA_Parser(filename, data=filecontent)
+		# if a macro is detected
+		if not vbaparser.detect_vba_macros():
+			self.log("VBA no Macros found in file")
+			vbaparser.close()
+			return None  # nothing found
+		else:
+			results = vbaparser.analyze_macros()
+			nr = 1
+			self.log("VBA Macros found")
+			# generate report for log file
+			for kw_type, keyword, description in results:
+				if kw_type == 'Suspicious':
+					vbaparser_report_log += 'Macro Number %i:\n Type: %s\n Keyword: %s\n Description: %s\n' % (
+					nr, kw_type, keyword, description)
+				nr += 1
+			vbaparser_report_log += '\nSummery:\nAutoExec keywords: %d\n' % vbaparser.nb_autoexec
+			vbaparser_report_log += 'Suspicious keywords: %d\n' % vbaparser.nb_suspicious
+			vbaparser_report_log += 'IOCs: %d\n' % vbaparser.nb_iocs
+			vbaparser_report_log += 'Hex obfuscated strings: %d\n' % vbaparser.nb_hexstrings
+			vbaparser_report_log += 'Base64 obfuscated strings: %d\n' % vbaparser.nb_base64strings
+			vbaparser_report_log += 'Dridex obfuscated strings: %d\n' % vbaparser.nb_dridexstrings
+			vbaparser_report_log += 'VBA obfuscated strings: %d' % vbaparser.nb_vbastrings
 
-        ## === Support Functions ===
+			r_level = vbaparser.nb_autoexec + vbaparser.nb_suspicious + vbaparser.nb_iocs + vbaparser.nb_hexstrings + vbaparser.nb_base64strings + vbaparser.nb_dridexstrings + vbaparser.nb_vbastrings
 
-    def addData(self, *data):
-        performace_data.put(data, self.level)
+			# set reject level to global
+			#self.level = r_level
+			vbaparser.close()
+			return [r_level, vbaparser_report_log]  # return the log to caller
 
-    def addExData(self, *data):
-        extension_data.put(data)
+		## === Support Functions ===
 
-    def extract_all(self, input_zip):
-        # TBD - extract_zip is not called !?
-        return {entry: self.extract_zip(entry) for entry in ZipFile(input_zip).namelist() if is_zipfile(entry)}
+	def addData(self, *data):
+		performace_data.put(data, self.level)
 
-    def extract_zip(self, input_zip):
-        input_zip = ZipFile(input_zip)
-        return {name: input_zip.read(name) for name in input_zip.namelist()}
+	def extract_all(self, input_zip):
+		# TBD - extract_zip is not called !?
+		return {entry: self.extract_zip(entry) for entry in ZipFile(input_zip).namelist() if is_zipfile(entry)}
 
+	def extract_zip(self, input_zip):
+		input_zip = ZipFile(input_zip)
+		return {name: input_zip.read(name) for name in input_zip.namelist()}
 
 ## ===== END CLASS ========
 
 
 ## ==== start MAIN ========
 
-
-
-
 def writehashtofile():
-    '''
-        Write the hash to db file
-    '''
-    while True:
-        hash_data = hash_to_write.get()
-        if not hash_data: break
-        # check if hash is in loaded hashtable
-        if hash_data not in hashtable:
-            with open(LOG_DIR + "HashTable.dat", "a") as myfile:
-                myfile.write(hash_data + '\n')
-
-
-def writeExData():
-    '''
-        Write the filenames to file - only used for debug - delete in the next version
-    '''
-    while True:
-        data = extension_data.get()
-        if not data: break
-        with open(LOG_DIR + "Filenames.log", "a") as myfile:
-            text = '%s\n' % data
-            myfile.write(text)
+	'''
+		Write the hash to db file
+	'''
+	while True:
+		hash_data = hash_to_write.get()
+		if not hash_data: break
+		# check if hash is in loaded hashtable
+		if hash_data not in hashtable:
+			with open(LOG_DIR + "HashTable.dat", "a") as myfile:
+				myfile.write(hash_data + '\n')
 
 def initialize_async_process_queues(queuesize = 4):
-    global logq, performace_data, extension_data, hash_to_write, hashtable, WhiteList
-    ## buffer queues for inter-thread communication
+	global logq, performace_data, extension_data, hash_to_write, hashtable, WhiteList
+	## buffer queues for inter-thread communication
 
-    logq = Queue(maxsize=queuesize) if (logq == None) else logq
-    performace_data = Queue(maxsize=queuesize) if (performace_data == None) else performace_data
-    extension_data = Queue(maxsize=queuesize) if (extension_data == None) else extension_data
-    hash_to_write = Queue(maxsize=queuesize) if (hash_to_write == None) else extension_data
-    hashtable = Set()
+	logq = Queue(maxsize=queuesize) if (logq == None) else logq
+	performace_data = Queue(maxsize=queuesize) if (performace_data == None) else performace_data
+	extension_data = Queue(maxsize=queuesize) if (extension_data == None) else extension_data
+	hash_to_write = Queue(maxsize=queuesize) if (hash_to_write == None) else extension_data
+	hashtable = Set()
 
 
 def create_and_start_worker_threads():
-    #initialize_async_process_queues()
-    thread_pool = []
-    # create helper threads
-    thread_pool.append(Thread(target=listen_on_logqueue_and_write_logging_to_stdout))
-    #logq.put("log writer thread started")
-    thread_pool.append(Thread(target=writeperformacedata))
-    thread_pool.append(Thread(target=writehashtofile))
-    thread_pool.append(Thread(target=writeExData))
-    # start helper threads
-    for workerThread in thread_pool:
-        workerThread.start()
+	#initialize_async_process_queues()
+	thread_pool = []
+	# create helper threads
+	thread_pool.append(Thread(target=listen_on_logqueue_and_write_logging_to_stdout))
+	#logq.put("log writer thread started")
+	thread_pool.append(Thread(target=writeperformacedata))
+	thread_pool.append(Thread(target=writehashtofile))
+	# start helper threads
+	for workerThread in thread_pool:
+		workerThread.start()
 
-    return thread_pool
+	return thread_pool
 
 
 def shutdown_worker_threads(thread_pool):
-    # wait for helper threads
-    for workerThread in thread_pool:
-        workerThread.join()
+	# wait for helper threads
+	for workerThread in thread_pool:
+		workerThread.join()
 
 def cleanup_queues():
-    # cleanup the queues
-    logq.put(None)
-    extension_data.put(None)
-    hash_to_write.put(None)
-    performace_data.put(None)
+	# cleanup the queues
+	logq.put(None)
+	hash_to_write.put(None)
+	performace_data.put(None)
 
-    clear_queue(logq)
-    clear_queue(extension_data)
-    clear_queue(hash_to_write)
-    clear_queue(performace_data)
+	clear_queue(logq)
+	clear_queue(hash_to_write)
+	clear_queue(performace_data)
 
 
 def clear_queue(queue):
-    try:
-        while True:
-            queue.get_nowait()
-    except Empty:
-        pass
+	try:
+		while True:
+			queue.get_nowait()
+	except Empty:
+		pass
 
 def listen_on_logqueue_and_write_logging_to_stdout():
-    '''
-        Write the logging informations to stdout
-    '''
-    msg_log = LOG_DIR + 'run.log'
-    print "macromilter: logging into " + msg_log
-    try:
-        while True:
-            t = logq.get()
-            if not t: break
-            msg, id, ts = t
-            for i in msg:
-                text = "%s [%d] - %s" % (time.strftime('%d.%m.%y %H:%M:%S', time.localtime(ts)), id, i)
-                print text
-                open(msg_log, 'a+').write(text + '\n')
-    except Exception, e:
-        print "Cant write run.log"
+	'''
+		Write the logging informations to stdout
+	'''
+	msg_log = LOG_DIR + 'run.log'
+	print "macromilter: logging into " + msg_log
+	while True:
+		try:
+			t = logq.get()
+			if not t: break
+			msg, id, ts = t
+			for i in msg:
+				text = "%s [%d] - %s" % (time.strftime('%d.%m.%y %H:%M:%S', time.localtime(ts)), id, i)
+				print text
+				open(msg_log, 'a+').write(text + '\n')
+		except Exception, e:
+			print "Cant write run.log"
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			print("Error at log file: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
 
 
 def writeperformacedata():
-    '''
-        Write the performance data to file in separate thread
-    '''
-    while True:
-        data = performace_data.get()
-        if not data: break
-        latenz, level = data
-        for d in data:
-            text = "%f;%d;%s\n" % (latenz, level, time.strftime('%d/%m/%y %H:%M:%S', time.localtime(time.time())))
-            open(LOG_DIR + 'performace.data', 'a+').write(text)
+	'''
+		Write the performance data to file in separate thread
+	'''
+	while True:
+		data = performace_data.get()
+		if not data: break
+		latenz, level = data
+		for d in data:
+			text = "%f;%d;%s\n" % (latenz, level, time.strftime('%d/%m/%y %H:%M:%S', time.localtime(time.time())))
+			open(LOG_DIR + 'performace.data', 'a+').write(text)
 
 
 ## === StartUp sequence
 
 def WhiteListLoad():
-    '''
-        Function to load the data form the WhiteList file and load into memory
-    '''
-    global WhiteList
-    with open(WHITELIST_FILE) as f:
-        WhiteList = f.read().splitlines()
+	'''
+		Function to load the data form the WhiteList file and load into memory
+	'''
+	global WhiteList
+	with open(WHITELIST_FILE) as f:
+		WhiteList = f.read().splitlines()
 
 
 def HashTableLoad():
-    '''
-        Load the hash info from file to memory
-    '''
-    # Load Hashs from file
-    global hashtable
-    hashtable = set(line.strip() for line in open(LOG_DIR + 'HashTable.dat', 'a+'))
+	'''
+		Load the hash info from file to memory
+	'''
+	# Load Hashs from file
+	global hashtable
+	hashtable = set(line.strip() for line in open(LOG_DIR + 'HashTable.dat', 'a+'))
 
 
 def main():
-    # Load the whitelist into memory
-    WhiteListLoad()
-    HashTableLoad()
+	# Load the whitelist into memory
+	WhiteListLoad()
+	HashTableLoad()
 
-    thread_pool = create_and_start_worker_threads()
+	thread_pool = create_and_start_worker_threads()
 
-    # Register to have the Milter factory create instances of the class:
-    Milter.factory = MacroMilter
-    flags = Milter.CHGBODY + Milter.CHGHDRS + Milter.ADDHDRS
-    flags += Milter.ADDRCPT
-    flags += Milter.DELRCPT
-    Milter.set_flags(flags)  # tell Sendmail which features we use
-    # start milter processing
-    print "%s Macro milter startup - Version %s" % (time.strftime('%d.%b.%Y %H:%M:%S'), __version__)
-    sys.stdout.flush()
-    # set the "last" fall back to ACCEPT if exception occur
-    Milter.set_exception_policy(Milter.ACCEPT)
+	# Register to have the Milter factory create instances of the class:
+	Milter.factory = MacroMilter
+	flags = Milter.CHGBODY + Milter.CHGHDRS + Milter.ADDHDRS
+	flags += Milter.ADDRCPT
+	flags += Milter.DELRCPT
+	Milter.set_flags(flags)  # tell Sendmail which features we use
+	# start milter processing
+	print "%s Macro milter startup - Version %s" % (time.strftime('%d.%b.%Y %H:%M:%S'), __version__)
+	sys.stdout.flush()
+	# set the "last" fall back to ACCEPT if exception occur
+	Milter.set_exception_policy(Milter.ACCEPT)
 
-    # start the milter
-    Milter.runmilter("MacroMilter", SOCKET, TIMEOUT)
+	# start the milter
+	Milter.runmilter("MacroMilter", SOCKET, TIMEOUT)
 
-    shutdown_worker_threads(thread_pool)
-    cleanup_queues()
+	shutdown_worker_threads(thread_pool)
+	cleanup_queues()
 
-    print "%s Macro milter shutdown" % time.strftime('%d.%b.%Y %H:%M:%S')
+	print "%s Macro milter shutdown" % time.strftime('%d.%b.%Y %H:%M:%S')
 
 
 if __name__ == "__main__":
-    main()
+	main()
