@@ -1,11 +1,3 @@
-## IMPORTANT: NEW IN 2.8.1 !!!!
-Please create the "log" folder /var/log/macromilter/log or LOG_DIR/log !!
-
-```bash
-  mkdir /var/log/macromilter/log
-  chown postfix:postfix -R /var/log/macromilter
-```
-
 ## Contributing
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
 
@@ -109,6 +101,7 @@ This file contains more than 500 MD5 Hashes of suspicious Office documents.
 
 ## Authors
 Stephan Traub - Sbidy -> https://github.com/sbidy
+heinrichheine -> https://github.com/heinrichheine 
 
 ## License
 The MIT License (MIT)
