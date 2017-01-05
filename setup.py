@@ -1,6 +1,6 @@
 from distutils.core import setup
 
 setup(name='macromilter',
-      version='2.8.2',
+      version='3.0',
       py_modules=['macromilter'],
       )
