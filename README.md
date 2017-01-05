@@ -1,17 +1,11 @@
-## IMPORTANT: NEW IN 2.8.1 !!!!
-Please create the "log" folder /var/log/macromilter/log or LOG_DIR/log !!
-
-```bash
-  mkdir /var/log/macromilter/log
-  chown postfix:postfix -R /var/log/macromilter
-```
-
 ## Contributing
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
 
-To contribute, please fork this repository and make pull requests to the develop branch.
+To contribute, please fork this repository and make pull requests to the master branch.
 ## Abstract
 This python based milter (mail-filter) checks an incoming mail for MS 200x Office attachments (doc, xls, ppt, xlsm, docm, rtf). If a MS Office file is attached to the mail it will be scanned for suspicious VBA macro code. After the milter parsed the attachment a kind of risk level will be defined for that document. If the risk level reaches a defined value – the mail will be rejected to the sender.
+
+Paper (only german): https://github.com/sbidy/MacroMilter/blob/master/Bachelorarbeit%20-%20Traub%2C%20Stephan.pdf
 
 *The repo is optimized for Visual Studio*
 ## Features
@@ -109,6 +103,7 @@ This file contains more than 500 MD5 Hashes of suspicious Office documents.
 
 ## Authors
 Stephan Traub - Sbidy -> https://github.com/sbidy
+heinrichheine -> https://github.com/heinrichheine 
 
 ## License
 The MIT License (MIT)
