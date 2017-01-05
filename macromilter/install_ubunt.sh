@@ -19,8 +19,8 @@ pip install configparser
 
 # copy the python script
 cd /etc/macromilter/
-wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/MacroMilter/macromilter.py
-wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/MacroMilter/config.ini
+wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/macromilter.py
+wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/config.ini
 # setup upstart config
 cd /etc/init/
 wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/MacroMilter.conf
