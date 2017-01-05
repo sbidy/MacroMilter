@@ -15,7 +15,7 @@ To contribute, please fork this repository and make pull requests to the master 
 ## Abstract
 This python based milter for the Sendmail and Postfix e-mail servers (mail-filter) checks an incoming mail for MS 20xx Office attachments. If a MS Office file is attached to the mail it will be scanned for suspicious VBA macro code. Documents with malicious macros are removed and replaced by harmless text files or will be rejected to the sender (see config.ini).
 
-## Supported Office formats:
+### Supported Office formats:
 - Word 97-2003 (.doc, .dot), Word 2007+ (.docm, .dotm)
 - Excel 97-2003 (.xls), Excel 2007+ (.xlsm, .xlsb)
 - PowerPoint 97-2003 (.ppt), PowerPoint 2007+ (.pptm, .ppsm)
