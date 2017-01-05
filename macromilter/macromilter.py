@@ -87,11 +87,11 @@ else:
 
 ## Config see ./config.ini
 __version__ = '3.0'  # version
-CONFIG = os.path.dirname(__file__)+"./config.ini" 
+CONFIG = os.path.dirname(__file__)+"/config.ini" 
 
 if os.path.isfile(CONFIG):
 	config = SafeConfigParser()
-	config.read('./config.ini')
+	config.read(CONFIG)
 	SOCKET = config.get('Milter', 'SOCKET')
 	TIMEOUT = config.getint('Milter', 'TIMEOUT')
 	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
