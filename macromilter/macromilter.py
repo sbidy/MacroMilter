@@ -87,7 +87,7 @@ else:
 
 ## Config see ./config.ini
 __version__ = '3.0'  # version
-CONFIG = os.path.dirname(__file__)+"/config.ini" 
+CONFIG = os.path.dirname(__file__)+"config.ini" 
 
 if os.path.isfile(CONFIG):
 	config = SafeConfigParser()
@@ -220,7 +220,7 @@ class MacroMilter(Milter.Base):
 	def addHashtoDB(self, data):
 		hash_data = hashlib.md5(data).hexdigest()
 		hashtable.add(hash_data)
-		with open(LOGFILE_DIR + "hashtable.db", "a") as hashdb:
+		with open(LOGFILE_DIR + "/hashtable.db", "a") as hashdb:
 			hashdb.write(hash_data + '\n')
 
 		log.debug("File Added %s" % hash_data)
@@ -358,7 +358,7 @@ def HashTableLoad():
 	'''
 	# Load Hashs from file
 	global hashtable
-	hashtable = set(line.strip() for line in open(LOGFILE_DIR + "hashtable.db", 'a+'))
+	hashtable = set(line.strip() for line in open(LOGFILE_DIR + "/hashtable.db", 'a+'))
 
 def main():
 	# Load the whitelist into memory
