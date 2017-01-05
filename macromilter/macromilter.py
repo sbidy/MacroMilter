@@ -87,7 +87,7 @@ else:
 
 ## Config see ./config.ini
 __version__ = '3.0'  # version
-CONFIG = os.path.dirname(__file__)+"config.ini" 
+CONFIG = os.path.join(os.path.dirname(__file__),"config.ini")
 
 if os.path.isfile(CONFIG):
 	config = SafeConfigParser()
@@ -106,6 +106,7 @@ else:
 # =============================================================================
 
 LOGFILE_PATH = os.path.join(LOGFILE_DIR, LOGFILE_NAME)
+HASHTABLE_PATH = os.path.join(LOGFILE_DIR, "hashtable.db")
 
 # Set up a specific logger with our desired output level
 log = logging.getLogger('MacroMilter')
@@ -212,7 +213,7 @@ class MacroMilter(Milter.Base):
 		hash_data = hashlib.md5(data).hexdigest()
 		# check if file is already parsed
 		if hash_data in hashtable:
-			log.info("Attachment %s already parsed ! REJECT" % hash_data)
+			log.warning("Attachment %s already parsed ! REJECT" % hash_data)
 			return True
 		else:
 			return False
@@ -220,7 +221,7 @@ class MacroMilter(Milter.Base):
 	def addHashtoDB(self, data):
 		hash_data = hashlib.md5(data).hexdigest()
 		hashtable.add(hash_data)
-		with open(LOGFILE_DIR + "/hashtable.db", "a") as hashdb:
+		with open(HASHTABLE_PATH, "a") as hashdb:
 			hashdb.write(hash_data + '\n')
 
 		log.debug("File Added %s" % hash_data)
@@ -326,7 +327,7 @@ class MacroMilter(Milter.Base):
 		if WhiteList is not None:
 			for name in WhiteList:
 				if re.search(name, sender) and not name.startswith("#"):
-					log.debug("Whitelisted user %s - accept all attachments" % (msg_from))
+					log.info("Whitelisted user %s - accept all attachments" % (msg_from))
 					return True
 		return False
 
@@ -358,7 +359,7 @@ def HashTableLoad():
 	'''
 	# Load Hashs from file
 	global hashtable
-	hashtable = set(line.strip() for line in open(LOGFILE_DIR + "/hashtable.db", 'a+'))
+	hashtable = set(line.strip() for line in open(HASHTABLE_PATH, 'a+'))
 
 def main():
 	# Load the whitelist into memory
@@ -383,7 +384,7 @@ def main():
 	if LOGLEVEL == 2:
 		log.setLevel(logging.INFO)
 	elif LOGLEVEL == 3:
-		log.setLevel(logging.ERROR)
+		log.setLevel(logging.WARNING)
 	else:
 		log.setLevel(logging.DEBUG)
 
