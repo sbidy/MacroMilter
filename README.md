@@ -1,8 +1,8 @@
 # Version 3.0 is available
 Changelog:
-  - Code cleanup and remove the multi-thread feature
+  - Code cleanup and removed the multi-thread feature
   - Add a config.ini file for the milter configuration 
-  - Update to the new mraptor feature from the oletools
+  - Update to the new mraptor feature (oletools)
   - Adapt logging from mraptor
   - Remove performance logging
   - BugFix for #9 and #10
@@ -32,7 +32,7 @@ Paper (german only): https://github.com/sbidy/MacroMilter/blob/master/Bachelorar
 * Easy to implement
 * Not based on virus heuristics (high detection rate)
 * Whitelisting
-* Creates a hashtable for allready scanned files (prevents rescans)
+* Creates a hashtable for already scanned files (prevents rescans)
 * Runns at the pre-queue at postfix
 
 ## Dependencies
