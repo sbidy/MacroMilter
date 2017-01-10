@@ -22,6 +22,7 @@
 ## 2.9.3 - 27.06.2016 heinrichheine/sbidy - Tested and updated version, some fixes added
 # -------------------------- V3 -----------------------------------------
 ## 3.0 - 05.01.2017 sbidy - Add some enhancements and major changes, used mraptor from oletools, cleanup and remove the multi-thread feature, add configuration file
+## 3.1 - 10.01.2017 sbidy - Bugfix for whitelist expetion
 
 # The MIT License (MIT)
 
@@ -319,6 +320,7 @@ class MacroMilter(Milter.Base):
 		'''
 			Lookup if the sender is at the whitelist - @domains.com must be supported
 		'''
+		global WhiteList
 		sender = ''
 		msg_from = msg['From']
 		if msg_from is not None:
