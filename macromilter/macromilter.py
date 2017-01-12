@@ -23,6 +23,7 @@
 # -------------------------- V3 -----------------------------------------
 ## 3.0 - 05.01.2017 sbidy - Add some enhancements and major changes, used mraptor from oletools, cleanup and remove the multi-thread feature, add configuration file
 ## 3.1 - 10.01.2017 sbidy - Bugfix for whitelist expetion
+## 3.2 - 12.01.2017 sbidy - Fix for exceptions.UnboundLocalError, possible fix for #10 zip - extraction did not work properly
 
 # The MIT License (MIT)
 
@@ -65,29 +66,22 @@ from Milter.utils import parse_addr
 from socket import AF_INET6
 from ConfigParser import SafeConfigParser
 
-if True:
-	from multiprocessing import Process as Thread, Queue
-else:
-	from threading import Thread
-	from Queue import Queue
-from Queue import Empty
-
 # use backport if needed
 if sys.version_info[0] <= 2:
 	# Python 2.x
 	if sys.version_info[1] <= 6:
 		# Python 2.6
 		# use is_zipfile backported from Python 2.7:
-		from oletools.thirdparty.zipfile27 import is_zipfile
+		from oletools.thirdparty.zipfile27 import ZipFile, is_zipfile
 	else:
 		# Python 2.7
-		from zipfile import is_zipfile
+		from zipfile import ZipFile, is_zipfile
 else:
 	# Python 3.x+
-	from zipfile import is_zipfile
+	from zipfile import ZipFile, is_zipfile
 
 ## Config see ./config.ini
-__version__ = '3.0'  # version
+__version__ = '3.2'  # version
 CONFIG = os.path.join(os.path.dirname(__file__),"config.ini")
 
 if os.path.isfile(CONFIG):
@@ -231,6 +225,8 @@ class MacroMilter(Milter.Base):
 		'''
 			Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
 		'''
+		# Accept all messages with no attachment
+		result = Milter.ACCEPT
 		try:
 			for part in msg.walk():
 				# for name, value in part.items():
@@ -251,11 +247,17 @@ class MacroMilter(Milter.Base):
 					if attachment.startswith(olevba.olefile.MAGIC) or is_zipfile(StringIO.StringIO(attachment)) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
 						or ('mime' in attachment_lowercase and 'version' in attachment_lowercase \
 						and 'multipart' in attachment_lowercase):
-						
-						vba_parser = olevba.VBA_Parser(filename='message', data=attachment)
 						vba_code_all_modules = ''
+						# check if the attachment is a zip
+						if is_zipfile(StringIO.StringIO(attachment)):
+							# extract all file in zip and add
+							zipvba = self.getZipFiles(attachment, filename)
+							vba_code_all_modules += zipvba + '\n'
+						# check the rest of the message
+						vba_parser = olevba.VBA_Parser(filename='message', data=attachment)
 						for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
 							vba_code_all_modules += vba_code + '\n'
+						# run the mraptor
 						m = mraptor.MacroRaptor(vba_code_all_modules)
 						m.scan()
 						if m.suspicious:
@@ -269,15 +271,12 @@ class MacroMilter(Milter.Base):
 								log.warning('[%d] The attachment %r contains a suspicious macro: replace it with a text file' % (self.id, filename))
 								part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 								part.set_type('text/plain')
-								part.replace_header('Content-Transfer-Encoding', '7bit')
-								result = Milter.ACCEPT								
+								part.replace_header('Content-Transfer-Encoding', '7bit')								
 						else:
 							log.debug('The attachment %r is clean.' % filename)
-							result = Milter.ACCEPT
 
 		except Exception:
 			log.error('[%d] Error while processing the message' % self.id)
-			result = Milter.ACCEPT
 
 		if REJECT_MESSAGE is False:
 			body = str(msg)
@@ -286,22 +285,23 @@ class MacroMilter(Milter.Base):
 			log.info('[%d] Message relayed' % self.id)
 		return result
 
-	def checkZIPforVBA(self, data, filename, msg): # NOT USED
+	def getZipFiles(self, attachment, filename):
 		'''
-			Checks a zip for parsesable files and send to the parser
+			Checks a zip for parsesable files and extract all macros
 		'''
 		log.debug("Find Attachment with archive extension - File name: %s" % (filename))
-
-		file_object = StringIO.StringIO(data)
-		# self.size = len(StringIO(data))
-		# print "Size:"+self.size
-		files_in_zip = self.extract_zip(file_object)
+		vba_code_all_modules = ''
+		file_object = StringIO.StringIO(attachment)
+		files_in_zip = self.extract_all(file_object)
+		
 		for zip_name, zip_data in files_in_zip.items():
 			# checks if it is a file
-			if zip_data and zip_name.lower().endswith(FILE_EXTENSION):
-				log.info("File in zip detected! Name: %s - check for VBA" % (zip_name))
-				# send to the checkFile
-				self.checkFileforVBA(zip_data, zip_name, msg)
+			log.info("File in zip detected! Name: %s - check for VBA" % (zip_name))
+			# send to the VBA_Parser
+			vba_parser = olevba.VBA_Parser(filename=zip_name, data=zip_data)
+			for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
+				vba_code_all_modules += vba_code + '\n'
+		return vba_code_all_modules
 
 	def archive_message(self):
 		'''
@@ -336,7 +336,7 @@ class MacroMilter(Milter.Base):
 	## === Support Functions ===
 
 	def extract_all(self, input_zip):
-		# TBD - extract_zip is not called !?
+		# TODO: extract_zip is not called !? Recursiv not working
 		return {entry: self.extract_zip(entry) for entry in ZipFile(input_zip).namelist() if is_zipfile(entry)}
 
 	def extract_zip(self, input_zip):
@@ -401,7 +401,7 @@ def main():
 	print("%s MacroMilter startup - Version %s" % (time.strftime('%d.%b.%Y %H:%M:%S'), __version__ ))
 	print('logging to file %s' % LOGFILE_PATH)
 
-	log.info('Starting mraptor_milter v%s - listening on %s' % (__version__, SOCKET))
+	log.info('Starting MarcoMilter v%s - listening on %s' % (__version__, SOCKET))
 	log.debug('Python version: %s' % sys.version)
 	sys.stdout.flush()
 	# set the "last" fall back to ACCEPT if exception occur
