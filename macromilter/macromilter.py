@@ -292,7 +292,7 @@ class MacroMilter(Milter.Base):
 		log.debug("Find Attachment with archive extension - File name: %s" % (filename))
 		vba_code_all_modules = ''
 		file_object = StringIO.StringIO(attachment)
-		files_in_zip = self.extract_all(file_object)
+		files_in_zip = self.extract_zip(file_object)
 		
 		for zip_name, zip_data in files_in_zip.items():
 			# checks if it is a file
