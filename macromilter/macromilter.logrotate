@@ -10,7 +10,7 @@
     create 640 postfix postfix
     sharedscripts
     postrotate
-        /usr/bin/systemctl restart macromilter.service > /dev/null
+        systemctl try-restart macromilter.service
     endscript
 }
 
