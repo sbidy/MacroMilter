@@ -24,6 +24,7 @@
 ## 3.0 - 05.01.2017 sbidy - Add some enhancements and major changes, used mraptor from oletools, cleanup and remove the multi-thread feature, add configuration file
 ## 3.1 - 10.01.2017 sbidy - Bugfix for whitelist expetion
 ## 3.2 - 12.01.2017 sbidy - Fix for exceptions.UnboundLocalError, possible fix for #10 zip - extraction did not work properly
+## 3.3 - 05.10.2017 sbidy - Update directory for FHS conform see #13
 
 # The MIT License (MIT)
 
@@ -81,9 +82,14 @@ else:
 	from zipfile import ZipFile, is_zipfile
 
 ## Config see ./config.ini
-__version__ = '3.2'  # version
-CONFIG = os.path.join(os.path.dirname(__file__),"config.ini")
+__version__ = '3.3'  # version
 
+# get the config from FHS confrom dir (bug #13)
+CONFIG = os.path.join(os.path.dirname("/etc/macromilter/"),"config.ini")
+if not os.path.isfile(CONFIG):
+	CONFIG = os.path.join(os.path.dirname(__file__),"config.ini")
+
+# get the configuration items
 if os.path.isfile(CONFIG):
 	config = SafeConfigParser()
 	config.read(CONFIG)

@@ -1,8 +1,7 @@
 #!/bin/bash
 # create files and folders
-mkdir /etc/macromilter
+mkdir /etc/macromilter/
 mkdir -p /var/log/macromilter/
-
 # only needed for a chroot env
 # mkdir /var/spool/postfix/etc/milter
 
@@ -18,8 +17,9 @@ pip install pymilter
 pip install configparser
 
 # copy the python script
-cd /etc/macromilter/
+cd /usr/bin/
 wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/macromilter.py
+cd /etc/macromilter/
 wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/config.ini
 # setup upstart config
 cd /etc/init/
@@ -29,6 +29,7 @@ initctl reload-configuration
 # set chown for postfix
 chown postfix:postfix -R /etc/macromilter
 chown postfix:postfix -R /var/log/macromilter
+chonw postfix:postfix /usr/bin/macromilter.py
 
 # only needed if you run the milter at chroot an with a linux-socket
 # chown postfix:postfix -R /var/spool/postfix/etc/milter 

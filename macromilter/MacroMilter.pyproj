@@ -26,7 +26,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="config.ini" />
-    <Content Include="install_ubunt.sh" />
+    <Content Include="install_ubuntu.sh" />
     <Content Include="MacroMilter.conf" />
     <Content Include="update.sh" />
   </ItemGroup>
