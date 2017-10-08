@@ -404,8 +404,8 @@ def main():
 	Milter.set_flags(flags)  # tell Sendmail which features we use
 
 	# start milter processing
-	print("%s MacroMilter startup - Version %s" % (time.strftime('%d.%b.%Y %H:%M:%S'), __version__ ))
-	print('Logging to file %s' % LOGFILE_PATH)
+	print("%s MacroMilter startup - Version %s" % (time.strftime('%Y-%m-%d %H:%M:%S'), __version__ ))
+	print('logging to file %s' % LOGFILE_PATH)
 
 	log.info('Starting MarcoMilter v%s - listening on %s' % (__version__, SOCKET))
 	log.debug('Python version: %s' % sys.version)
@@ -416,7 +416,7 @@ def main():
 	# start the milter
 	Milter.runmilter("MacroMilter", SOCKET, TIMEOUT)
 
-	print("%s Macro milter shutdown" % time.strftime('%d.%b.%Y %H:%M:%S'))
+	print("%s MacroMilter shutdown" % time.strftime('%Y-%m-%d %H:%M:%S'))
 
 if __name__ == "__main__":
 	main()
