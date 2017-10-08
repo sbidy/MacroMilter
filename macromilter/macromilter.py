@@ -7,24 +7,24 @@
 ## 1.8 - 07.01.2016 sbidy - Commit at github, add the privacy statement
 ## 1.9 - 12.01.2016 sbidy - Clean up the code - deleted the virus total function. Hive off to a separate project/milter
 ## 2.0 - 12.01.2016 sbidy - Add spam header "X-Spam-Flag" to yes for a non-MIME Message
-## 2.1 - 15.02.2016 sbidy - Fix multi attachment bug, now parses multible attachments, docm and xlsm added
+## 2.1 - 15.02.2016 sbidy - Fix multi attachment bug, now parses multiple attachments, docm and xlsm added
 ## 2.2 - 18.02.2016 sbidy - Fix while loop bug
-## 2.3 - 22.02.2016 sbidy - Fix multible entry at hashtable and remove ppt
+## 2.3 - 22.02.2016 sbidy - Fix multiple entry at hashtable and remove ppt
 ## 2.4 - 07.03.2016 sbidy - Update bad zip file exception and disable file logging + x-spam-flag
 ## 2.5 - 07.03.2016 sbidy - Fix run.log bug and disable connect log
 ## 2.6 - 08.03.2016 Gulaschcowboy - Added CFG_DIR, fixed some paths, added systemd.service, Readme.opensuse and logrotate script
 ## 2.7 - 18.03.2016 sbidy - Added rtf to file list
-## 2.8 - 29.03.2016 sbidy - Added some major fixes and code cleanup, added the zip extraction for .zip files regrading issue #5
+## 2.8 - 29.03.2016 sbidy - Added some major fixes and code cleanup, added the zip extraction for .zip files regarding issue #5
 ## 2.8.1 - 30.03.2016 sbidy - Fix the str-exception, added some logging informations
-## 2.9 - 20.05.2016 sbidy - Fix issue #6 - queue not empty after log fiel cant written, write extension data to file deleted
+## 2.9 - 20.05.2016 sbidy - Fix issue #6 - queue not empty after log file can't written, write extension data to file deleted
 ## 2.9.1 - 20.05.2016 sbidy - Additional fixes for #6
 ## 2.9.2 - 27.06.2016 sbidy - Add changes from heinrichheine and merge to master
 ## 2.9.3 - 27.06.2016 heinrichheine/sbidy - Tested and updated version, some fixes added
 # -------------------------- V3 -----------------------------------------
 ## 3.0 - 05.01.2017 sbidy - Add some enhancements and major changes, used mraptor from oletools, cleanup and remove the multi-thread feature, add configuration file
-## 3.1 - 10.01.2017 sbidy - Bugfix for whitelist expetion
+## 3.1 - 10.01.2017 sbidy - Bugfix for whitelist exception
 ## 3.2 - 12.01.2017 sbidy - Fix for exceptions.UnboundLocalError, possible fix for #10 zip - extraction did not work properly
-## 3.3 - 05.10.2017 sbidy - Update directory for FHS conform see #13
+## 3.3 - 05.10.2017 sbidy - Update directory for FHS conformity see #13
 
 # The MIT License (MIT)
 
@@ -146,7 +146,7 @@ class MacroMilter(Milter.Base):
 			self.scope = None
 		self.IPname = IPname  # Name from a reverse IP lookup
 		self.messageToParse = None  # content
-		log.debug("connect from %s at %s" % (IPname, hostaddr)) # for logging
+		log.debug("Connect from %s at %s" % (IPname, hostaddr)) # for logging
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -214,7 +214,7 @@ class MacroMilter(Milter.Base):
 		hash_data = hashlib.md5(data).hexdigest()
 		# check if file is already parsed
 		if hash_data in hashtable:
-			log.warning("Attachment %s already parsed ! REJECT" % hash_data)
+			log.warning("Attachment %s already parsed: REJECT" % hash_data)
 			return True
 		else:
 			return False
@@ -225,7 +225,7 @@ class MacroMilter(Milter.Base):
 		with open(HASHTABLE_PATH, "a") as hashdb:
 			hashdb.write(hash_data + '\n')
 
-		log.debug("File Added %s" % hash_data)
+		log.debug("File added: %s" % hash_data)
 
 	def checkforVBA(self, msg):
 		'''
@@ -238,14 +238,14 @@ class MacroMilter(Milter.Base):
 				# for name, value in part.items():
 				#     log.debug(' - %s: %r' % (name, value))
 				content_type = part.get_content_type()
-				log.debug('[%d] Content-type: %r' % (self.id, content_type))
+				log.debug('[%d] Content-Type: %r' % (self.id, content_type))
 				# TODO: handle any content-type, but check the file magic?
 				if not content_type.startswith('multipart'):
 					filename = part.get_filename(None)
-					log.debug('[%d] Analyzing attachment %r' % (self.id, filename))
+					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
 					attachment = part.get_payload(decode=True)
 					attachment_lowercase = attachment.lower()
-					# chech if file alrady parsed
+					# check if file was already parsed
 					if self.fileHasAlreadyBeenParsed(attachment):
 						return Milter.REJECT
 					# check if this is a supported file type (if not, just skip it)
@@ -271,7 +271,7 @@ class MacroMilter(Milter.Base):
 							self.addHashtoDB(attachment)
 							# Replace the attachment or reject it
 							if REJECT_MESSAGE:
-								log.warning('[%d] The attachment %r contains a suspicious macro. REJECT' % (self.id, filename))
+								log.warning('[%d] The attachment %r contains a suspicious macro: REJECT' % (self.id, filename))
 								result = Milter.REJECT
 							else :
 								log.warning('[%d] The attachment %r contains a suspicious macro: replace it with a text file' % (self.id, filename))
@@ -295,7 +295,7 @@ class MacroMilter(Milter.Base):
 		'''
 			Checks a zip for parsesable files and extract all macros
 		'''
-		log.debug("Find Attachment with archive extension - File name: %s" % (filename))
+		log.debug("Found attachment with archive extension - file name: %s" % (filename))
 		vba_code_all_modules = ''
 		file_object = StringIO.StringIO(attachment)
 		files_in_zip = self.extract_zip(file_object)
@@ -405,7 +405,7 @@ def main():
 
 	# start milter processing
 	print("%s MacroMilter startup - Version %s" % (time.strftime('%d.%b.%Y %H:%M:%S'), __version__ ))
-	print('logging to file %s' % LOGFILE_PATH)
+	print('Logging to file %s' % LOGFILE_PATH)
 
 	log.info('Starting MarcoMilter v%s - listening on %s' % (__version__, SOCKET))
 	log.debug('Python version: %s' % sys.version)
