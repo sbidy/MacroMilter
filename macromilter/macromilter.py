@@ -60,6 +60,7 @@ import errno
 import logging
 import logging.handlers
 import io
+import traceback
 
 from sets import Set
 from oletools import olevba, mraptor
@@ -283,6 +284,10 @@ class MacroMilter(Milter.Base):
 
 		except Exception:
 			log.error('[%d] Error while processing the message' % self.id)
+			exc_type, exc_value, exc_traceback = sys.exc_info()
+			lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+			exep = ''.join('!! ' + line for line in lines)
+			log.debug("[%d] Exeption code: [%s]" % (self.id, exep))
 
 		if REJECT_MESSAGE is False:
 			body = str(msg)

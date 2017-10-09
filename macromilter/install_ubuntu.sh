@@ -29,7 +29,7 @@ initctl reload-configuration
 # set chown for postfix
 chown postfix:postfix -R /etc/macromilter
 chown postfix:postfix -R /var/log/macromilter
-chonw postfix:postfix /usr/bin/macromilter.py
+chown postfix:postfix /usr/bin/macromilter.py
 
 # only needed if you run the milter at chroot an with a linux-socket
 # chown postfix:postfix -R /var/spool/postfix/etc/milter 
