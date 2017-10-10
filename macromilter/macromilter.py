@@ -99,6 +99,7 @@ if os.path.isfile(CONFIG):
 	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
 	CFG_DIR = config.get('Milter', 'CFG_DIR')
 	MESSAGE = config.get('Milter', 'MESSAGE')
+	MAX_ZIP = config.getint('Milter', 'MAX_ZIP')
 	REJECT_MESSAGE = config.getboolean('Milter', 'REJECT_MESSAGE')
 	LOGFILE_DIR = config.get('Logging', 'LOGFILE_DIR')
 	LOGFILE_NAME = config.get('Logging', 'LOGFILE_NAME')
@@ -119,9 +120,11 @@ hash_to_write = None
 hashtable = None
 WhiteList = None
 
+class ToManyZipException(Exception):
+	pass
+
 ## Customized milter class - partly copied from
 ## https://github.com/jmehnle/pymilter/blob/master/milter-template.py
-
 class MacroMilter(Milter.Base):
 	'''Base class for MacroMilter to move boilerplate connection stuff away from the real
 		business logic for macro parsing
@@ -258,8 +261,12 @@ class MacroMilter(Milter.Base):
 						# check if the attachment is a zip
 						if is_zipfile(StringIO.StringIO(attachment)):
 							# extract all file in zip and add
-							zipvba = self.getZipFiles(attachment, filename)
-							vba_code_all_modules += zipvba + '\n'
+							try:
+								zipvba = self.getZipFiles(attachment, filename)
+								vba_code_all_modules += zipvba + '\n'
+							except ToManyZipException:
+								log.warning("Attachment %s is reached the max. nested zip count! ZipBomb?: REJECT" % filename)
+								return Milter.REJECT
 						# check the rest of the message
 						vba_parser = olevba.VBA_Parser(filename='message', data=attachment)
 						for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
@@ -303,15 +310,17 @@ class MacroMilter(Milter.Base):
 		log.debug("Found attachment with archive extension - file name: %s" % (filename))
 		vba_code_all_modules = ''
 		file_object = StringIO.StringIO(attachment)
-		files_in_zip = self.extract_zip(file_object)
-		
-		for zip_name, zip_data in files_in_zip.items():
+		files_in_zip = self.zipwalk(file_object,0)
+			
+		for zip_name, zip_data in files_in_zip:
 			# checks if it is a file
-			log.info("File in zip detected! Name: %s - check for VBA" % (zip_name))
+			log.info("File in zip detected! Name: %s - check for VBA" % (zip_name.filename))
 			# send to the VBA_Parser
-			vba_parser = olevba.VBA_Parser(filename=zip_name, data=zip_data)
-			for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
-				vba_code_all_modules += vba_code + '\n'
+			if zip_data.startswith(olevba.olefile.MAGIC):
+				vba_parser = olevba.VBA_Parser(filename=zip_name.filename, data=zip_data)
+				print zip_data
+				for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
+					vba_code_all_modules += vba_code + '\n'
 		return vba_code_all_modules
 
 	def archive_message(self):
@@ -346,13 +355,37 @@ class MacroMilter(Milter.Base):
 
 	## === Support Functions ===
 
-	def extract_all(self, input_zip):
-		# TODO: extract_zip is not called !? Recursiv not working
-		return {entry: self.extract_zip(entry) for entry in ZipFile(input_zip).namelist() if is_zipfile(entry)}
+	def zipwalk(self, zfilename, count):
+		tempdir = os.environ.get('TEMP',os.environ.get('TMP',os.environ.get('TMPDIR','/tmp')))
+		z = ZipFile(zfilename,'r')
+		for info in z.infolist():
+			fname = info.filename
+			data = z.read(fname)
+			extn = (os.path.splitext(fname)[1]).lower()
 
-	def extract_zip(self, input_zip):
-		input_zip = ZipFile(input_zip)
-		return {name: input_zip.read(name) for name in input_zip.namelist()}
+			if extn=='.zip':
+				checkz=False
+				tmpfpath = os.path.join(tempdir,os.path.basename(fname))
+				open(tmpfpath,'w+b').write(data)
+
+				if is_zipfile(tmpfpath):
+					checkz=True
+					count = count+1
+					print (fname)
+					if  count > MAX_ZIP:
+						raise ToManyZipException("To many nested zips found - possible zipbomb!")
+				if checkz and not data.startswith(olevba.olefile.MAGIC):
+					try:
+						for x in self.zipwalk(tmpfpath, count):
+							yield x
+					except Exception:
+						raise 
+				try:
+					os.remove(tmpfpath)
+				except:
+					pass
+			else:
+				yield (info, data)
 
 ## ===== END CLASS ========
 
