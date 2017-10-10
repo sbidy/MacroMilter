@@ -259,7 +259,7 @@ class MacroMilter(Milter.Base):
 						and 'multipart' in attachment_lowercase):
 						vba_code_all_modules = ''
 						# check if the attachment is a zip
-						if is_zipfile(StringIO.StringIO(attachment) and not attachment.startswith(olevba.olefile.MAGIC)):
+						if is_zipfile(StringIO.StringIO(attachment)):
 							# extract all file in zip and add
 							try:
 								zipvba = self.getZipFiles(attachment, filename)
@@ -285,7 +285,7 @@ class MacroMilter(Milter.Base):
 								log.warning('[%d] The attachment %r contains a suspicious macro: replace it with a text file' % (self.id, filename))
 								part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 								part.set_type('text/plain')
-								part.replace_header('Content-Transfer-Encoding', '7bit')								
+								part.replace_header('Content-Transfer-Encoding', '7bit')
 						else:
 							log.debug('The attachment %r is clean.' % filename)
 
@@ -316,7 +316,8 @@ class MacroMilter(Milter.Base):
 			# checks if it is a file
 			log.info("File in zip detected! Name: %s - check for VBA" % (zip_name.filename))
 			# send to the VBA_Parser
-			if zip_data.startswith(olevba.olefile.MAGIC):
+			extn = (os.path.splitext(zip_name)[1]).lower()
+			if zip_data.startswith(olevba.olefile.MAGIC) or extn == ".docx":
 				vba_parser = olevba.VBA_Parser(filename=zip_name.filename, data=zip_data)
 				for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
 					vba_code_all_modules += vba_code + '\n'
@@ -387,7 +388,6 @@ class MacroMilter(Milter.Base):
 				yield (info, data)
 
 ## ===== END CLASS ========
-
 
 ## ==== start MAIN ========
 
