@@ -259,7 +259,7 @@ class MacroMilter(Milter.Base):
 						and 'multipart' in attachment_lowercase):
 						vba_code_all_modules = ''
 						# check if the attachment is a zip
-						if is_zipfile(StringIO.StringIO(attachment)):
+						if is_zipfile(StringIO.StringIO(attachment) and not attachment.startswith(olevba.olefile.MAGIC)):
 							# extract all file in zip and add
 							try:
 								zipvba = self.getZipFiles(attachment, filename)
@@ -318,7 +318,6 @@ class MacroMilter(Milter.Base):
 			# send to the VBA_Parser
 			if zip_data.startswith(olevba.olefile.MAGIC):
 				vba_parser = olevba.VBA_Parser(filename=zip_name.filename, data=zip_data)
-				print zip_data
 				for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
 					vba_code_all_modules += vba_code + '\n'
 		return vba_code_all_modules
