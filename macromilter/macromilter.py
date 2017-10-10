@@ -248,7 +248,7 @@ class MacroMilter(Milter.Base):
 					filename = part.get_filename(None)
 					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
 					attachment = part.get_payload(decode=True)
-					if attachmen is None:
+					if attachment is None:
 						return Milter.CONTINUE
 					attachment_lowercase = attachment.lower()
 					# check if file was already parsed
