@@ -248,6 +248,8 @@ class MacroMilter(Milter.Base):
 					filename = part.get_filename(None)
 					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
 					attachment = part.get_payload(decode=True)
+					if attachmen is None:
+						return Milter.CONTINUE
 					attachment_lowercase = attachment.lower()
 					# check if file was already parsed
 					if self.fileHasAlreadyBeenParsed(attachment):
@@ -316,8 +318,8 @@ class MacroMilter(Milter.Base):
 			# checks if it is a file
 			log.info("File in zip detected! Name: %s - check for VBA" % (zip_name.filename))
 			# send to the VBA_Parser
-			extn = (os.path.splitext(zip_name)[1]).lower()
-			if zip_data.startswith(olevba.olefile.MAGIC) or extn == ".docx":
+			zip_mem_data = StringIO.StringIO(zip_data)
+			if zip_mem_data.getvalue().startswith(olevba.olefile.MAGIC):
 				vba_parser = olevba.VBA_Parser(filename=zip_name.filename, data=zip_data)
 				for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
 					vba_code_all_modules += vba_code + '\n'
