@@ -111,6 +111,8 @@ else:
 LOGFILE_PATH = os.path.join(LOGFILE_DIR, LOGFILE_NAME)
 HASHTABLE_PATH = os.path.join(LOGFILE_DIR, "hashtable.db")
 
+EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm"
+
 # Set up a specific logger with our desired output level
 log = logging.getLogger('MacroMilter')
 # disable logging by default - enable it in main app:
@@ -318,8 +320,8 @@ class MacroMilter(Milter.Base):
 			# checks if it is a file
 			log.info("File in zip detected! Name: %s - check for VBA" % (zip_name.filename))
 			# send to the VBA_Parser
-			zip_mem_data = StringIO.StringIO(zip_data)
-			if zip_mem_data.getvalue().startswith(olevba.olefile.MAGIC):
+			name, ext = os.path.splitext(zip_name.filename)
+			if zip_mem_data.getvalue().startswith(olevba.olefile.MAGIC) or ext in EXTENSIONS:
 				vba_parser = olevba.VBA_Parser(filename=zip_name.filename, data=zip_data)
 				for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
 					vba_code_all_modules += vba_code + '\n'
