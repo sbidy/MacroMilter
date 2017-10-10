@@ -319,8 +319,10 @@ class MacroMilter(Milter.Base):
 		for zip_name, zip_data in files_in_zip:
 			# checks if it is a file
 			log.info("File in zip detected! Name: %s - check for VBA" % (zip_name.filename))
-			# send to the VBA_Parser
+			
+			zip_mem_data = StringIO.StringIO(zip_data)
 			name, ext = os.path.splitext(zip_name.filename)
+			# send to the VBA_Parser
 			if zip_mem_data.getvalue().startswith(olevba.olefile.MAGIC) or ext in EXTENSIONS:
 				vba_parser = olevba.VBA_Parser(filename=zip_name.filename, data=zip_data)
 				for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
