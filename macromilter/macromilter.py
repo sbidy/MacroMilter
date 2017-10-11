@@ -122,6 +122,7 @@ hash_to_write = None
 hashtable = None
 WhiteList = None
 
+# Custom expetion class for archive bomb exception
 class ToManyZipException(Exception):
 	pass
 
@@ -248,10 +249,10 @@ class MacroMilter(Milter.Base):
 				# TODO: handle any content-type, but check the file magic?
 				if not content_type.startswith('multipart'):
 					filename = part.get_filename(None)
-					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
 					attachment = part.get_payload(decode=True)
 					if attachment is None:
 						return Milter.CONTINUE
+					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
 					attachment_lowercase = attachment.lower()
 					# check if file was already parsed
 					if self.fileHasAlreadyBeenParsed(attachment):
@@ -329,19 +330,6 @@ class MacroMilter(Milter.Base):
 					vba_code_all_modules += vba_code + '\n'
 		return vba_code_all_modules
 
-	def archive_message(self):
-		'''
-		Save a copy of the current message in its original form to a file
-		:return: nothing
-		'''
-		date_time = datetime.datetime.utcnow().isoformat('_')
-		# assumption: by combining datetime + milter id, the filename should be unique:
-		# (the only case for duplicates is when restarting the milter twice in less than a second)
-		fname = 'mail_%s_%d.eml' % (date_time, self.id)
-		fname = os.path.join(ARCHIVE_DIR, fname)
-		log.debug('Saving a copy of the original message to file %r' % fname)
-		open(fname, 'wb').write(self.messageToParse.getvalue())
-
 	def sender_is_in_whitelist(self, msg):
 		'''
 			Lookup if the sender is at the whitelist - @domains.com must be supported
@@ -360,10 +348,15 @@ class MacroMilter(Milter.Base):
 		return False
 
 	## === Support Functions ===
-
+	'''
+			Walks trougth the zip file and gets extracts all data for VBA scanning
+			:return: File content generator
+	'''
 	def zipwalk(self, zfilename, count):
+		# TODO: Maybe better in memory?!
 		tempdir = os.environ.get('TEMP',os.environ.get('TMP',os.environ.get('TMPDIR','/tmp')))
 		z = ZipFile(zfilename,'r')
+		# start walk
 		for info in z.infolist():
 			fname = info.filename
 			data = z.read(fname)
@@ -378,10 +371,12 @@ class MacroMilter(Milter.Base):
 					checkz=True
 					count = count+1
 					print (fname)
+					# check each round
 					if  count > MAX_ZIP:
 						raise ToManyZipException("To many nested zips found - possible zipbomb!")
 				if checkz and not data.startswith(olevba.olefile.MAGIC):
 					try:
+						# recurisve call if nested
 						for x in self.zipwalk(tmpfpath, count):
 							yield x
 					except Exception:
@@ -391,6 +386,7 @@ class MacroMilter(Milter.Base):
 				except:
 					pass
 			else:
+				# retrun the generator
 				yield (info, data)
 
 ## ===== END CLASS ========
@@ -419,12 +415,12 @@ def main():
 
 	# make sure the log directory exists:
 	try:
-		os.makedirs(LOGFILE_DIR)
+		os.makedirs(LOGFILE_DIR,0o0750)
 	except:
 		pass
 	# Add the log message handler to the logger
-	# log to files rotating once a day:
-	handler = logging.handlers.TimedRotatingFileHandler(LOGFILE_PATH, when='D', encoding='utf8')
+	# rotation handeld by logrotatd
+	handler = logging.handlers.WatchedFileHandler(LOGFILE_PATH, encoding='utf8')
 	# create formatter and add it to the handlers
 	formatter = logging.Formatter('%(asctime)s - %(levelname)8s: %(message)s')
 	handler.setFormatter(formatter)
