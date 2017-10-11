@@ -349,7 +349,7 @@ class MacroMilter(Milter.Base):
 
 	## === Support Functions ===
 	'''
-			Walks trougth the zip file and gets extracts all data for VBA scanning
+			Walks through the zip file and gets extracts all data for VBA scanning
 			:return: File content generator
 	'''
 	def zipwalk(self, zfilename, count):

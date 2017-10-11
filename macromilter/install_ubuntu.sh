@@ -24,7 +24,10 @@ wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/conf
 # setup upstart config
 cd /etc/init/
 wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/MacroMilter.conf
+cd /etc/logrotate.d/
+wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/macromilter.logrotate
 initctl reload-configuration
+
 
 # set chown for postfix
 chown postfix:postfix -R /etc/macromilter
