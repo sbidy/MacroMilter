@@ -212,7 +212,7 @@ class MacroMilter(Milter.Base):
 
 	def fileHasAlreadyBeenParsed(self, data):
 		# generate Hash from file
-		hash_data = hashlib.md5(data).hexdigest()
+		hash_data = hashlib.sha512(data).hexdigest()
 		# check if file is already parsed
 		if hash_data in hashtable:
 			log.warning("Attachment %s already parsed: REJECT" % hash_data)
@@ -221,7 +221,7 @@ class MacroMilter(Milter.Base):
 			return False
 
 	def addHashtoDB(self, data):
-		hash_data = hashlib.md5(data).hexdigest()
+		hash_data = hashlib.sha512(data).hexdigest()
 		hashtable.add(hash_data)
 		with open(HASHTABLE_PATH, "a") as hashdb:
 			hashdb.write(hash_data + '\n')
@@ -268,7 +268,7 @@ class MacroMilter(Milter.Base):
 						m = mraptor.MacroRaptor(vba_code_all_modules)
 						m.scan()
 						if m.suspicious:
-							# Add MD5 to the database
+							# Add SHA512 hash to database
 							self.addHashtoDB(attachment)
 							# Replace the attachment or reject it
 							if REJECT_MESSAGE:
