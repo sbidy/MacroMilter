@@ -24,6 +24,7 @@ This python based milter for the Sendmail and Postfix e-mail servers (mail-filte
 - Publisher (.pub)
 
 Paper (german only): https://github.com/sbidy/MacroMilter/blob/master/Bachelorarbeit%20-%20Traub%2C%20Stephan.pdf
+Video / Talk: (german only): http://events.mi.hdm-stuttgart.de/2016-06-29-mi-pr%C3%A4sentationstag-ss16/MacroMilter%3A%20Malware-Filter%20f%C3%BCr%20E-Mails
 
 *The repo is optimized for Visual Studio*
 ## Features
