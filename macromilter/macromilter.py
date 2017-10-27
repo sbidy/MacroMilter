@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 ## Macro Milter for postfix - https://github.com/sbidy/MacroMilter
 ##
 ## 1.4 - 15.12.2015 sbidy - Update comments, add hash-set for lookup and safe to persistent
