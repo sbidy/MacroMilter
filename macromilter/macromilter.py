@@ -25,6 +25,7 @@
 ## 3.1 - 10.01.2017 sbidy - Bugfix for whitelist exception
 ## 3.2 - 12.01.2017 sbidy - Fix for exceptions.UnboundLocalError, possible fix for #10 zip - extraction did not work properly
 ## 3.3 - 05.10.2017 sbidy - Update directory for FHS conformity see #13
+## 3.4 - 27.10.2017 sbidy - Update and fix some bug #19, #18 and #17 - create release 
 
 # The MIT License (MIT)
 

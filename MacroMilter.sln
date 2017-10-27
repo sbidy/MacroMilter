@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.25928.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "MacroMilter", "MacroMilter\MacroMilter.pyproj", "{15628F71-C607-4AE4-8167-68EB50A18409}"
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "macromilter", "macromilter\MacroMilter.pyproj", "{15628F71-C607-4AE4-8167-68EB50A18409}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
