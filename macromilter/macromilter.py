@@ -99,6 +99,7 @@ if os.path.isfile(CONFIG):
 	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
 	CFG_DIR = config.get('Milter', 'CFG_DIR')
 	MESSAGE = config.get('Milter', 'MESSAGE')
+	MAX_ZIP = config.getint('Milter', 'MAX_ZIP')
 	REJECT_MESSAGE = config.getboolean('Milter', 'REJECT_MESSAGE')
 	LOGFILE_DIR = config.get('Logging', 'LOGFILE_DIR')
 	LOGFILE_NAME = config.get('Logging', 'LOGFILE_NAME')
@@ -110,6 +111,8 @@ else:
 LOGFILE_PATH = os.path.join(LOGFILE_DIR, LOGFILE_NAME)
 HASHTABLE_PATH = os.path.join(LOGFILE_DIR, "hashtable.db")
 
+EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm"
+
 # Set up a specific logger with our desired output level
 log = logging.getLogger('MacroMilter')
 # disable logging by default - enable it in main app:
@@ -119,9 +122,12 @@ hash_to_write = None
 hashtable = None
 WhiteList = None
 
+# Custom expetion class for archive bomb exception
+class ToManyZipException(Exception):
+	pass
+
 ## Customized milter class - partly copied from
 ## https://github.com/jmehnle/pymilter/blob/master/milter-template.py
-
 class MacroMilter(Milter.Base):
 	'''Base class for MacroMilter to move boilerplate connection stuff away from the real
 		business logic for macro parsing
@@ -243,8 +249,10 @@ class MacroMilter(Milter.Base):
 				# TODO: handle any content-type, but check the file magic?
 				if not content_type.startswith('multipart'):
 					filename = part.get_filename(None)
-					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
 					attachment = part.get_payload(decode=True)
+					if attachment is None:
+						return Milter.CONTINUE
+					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
 					attachment_lowercase = attachment.lower()
 					# check if file was already parsed
 					if self.fileHasAlreadyBeenParsed(attachment):
@@ -258,8 +266,12 @@ class MacroMilter(Milter.Base):
 						# check if the attachment is a zip
 						if is_zipfile(StringIO.StringIO(attachment)):
 							# extract all file in zip and add
-							zipvba = self.getZipFiles(attachment, filename)
-							vba_code_all_modules += zipvba + '\n'
+							try:
+								zipvba = self.getZipFiles(attachment, filename)
+								vba_code_all_modules += zipvba + '\n'
+							except ToManyZipException:
+								log.warning("Attachment %s is reached the max. nested zip count! ZipBomb?: REJECT" % filename)
+								return Milter.REJECT
 						# check the rest of the message
 						vba_parser = olevba.VBA_Parser(filename='message', data=attachment)
 						for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
@@ -278,7 +290,7 @@ class MacroMilter(Milter.Base):
 								log.warning('[%d] The attachment %r contains a suspicious macro: replace it with a text file' % (self.id, filename))
 								part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 								part.set_type('text/plain')
-								part.replace_header('Content-Transfer-Encoding', '7bit')								
+								part.replace_header('Content-Transfer-Encoding', '7bit')
 						else:
 							log.debug('The attachment %r is clean.' % filename)
 
@@ -303,29 +315,20 @@ class MacroMilter(Milter.Base):
 		log.debug("Found attachment with archive extension - file name: %s" % (filename))
 		vba_code_all_modules = ''
 		file_object = StringIO.StringIO(attachment)
-		files_in_zip = self.extract_zip(file_object)
-		
-		for zip_name, zip_data in files_in_zip.items():
+		files_in_zip = self.zipwalk(file_object,0)
+			
+		for zip_name, zip_data in files_in_zip:
 			# checks if it is a file
-			log.info("File in zip detected! Name: %s - check for VBA" % (zip_name))
+			log.info("File in zip detected! Name: %s - check for VBA" % (zip_name.filename))
+			
+			zip_mem_data = StringIO.StringIO(zip_data)
+			name, ext = os.path.splitext(zip_name.filename)
 			# send to the VBA_Parser
-			vba_parser = olevba.VBA_Parser(filename=zip_name, data=zip_data)
-			for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
-				vba_code_all_modules += vba_code + '\n'
+			if zip_mem_data.getvalue().startswith(olevba.olefile.MAGIC) or ext in EXTENSIONS:
+				vba_parser = olevba.VBA_Parser(filename=zip_name.filename, data=zip_data)
+				for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
+					vba_code_all_modules += vba_code + '\n'
 		return vba_code_all_modules
-
-	def archive_message(self):
-		'''
-		Save a copy of the current message in its original form to a file
-		:return: nothing
-		'''
-		date_time = datetime.datetime.utcnow().isoformat('_')
-		# assumption: by combining datetime + milter id, the filename should be unique:
-		# (the only case for duplicates is when restarting the milter twice in less than a second)
-		fname = 'mail_%s_%d.eml' % (date_time, self.id)
-		fname = os.path.join(ARCHIVE_DIR, fname)
-		log.debug('Saving a copy of the original message to file %r' % fname)
-		open(fname, 'wb').write(self.messageToParse.getvalue())
 
 	def sender_is_in_whitelist(self, msg):
 		'''
@@ -345,17 +348,48 @@ class MacroMilter(Milter.Base):
 		return False
 
 	## === Support Functions ===
+	'''
+			Walks through the zip file and gets extracts all data for VBA scanning
+			:return: File content generator
+	'''
+	def zipwalk(self, zfilename, count):
+		# TODO: Maybe better in memory?!
+		tempdir = os.environ.get('TEMP',os.environ.get('TMP',os.environ.get('TMPDIR','/tmp')))
+		z = ZipFile(zfilename,'r')
+		# start walk
+		for info in z.infolist():
+			fname = info.filename
+			data = z.read(fname)
+			extn = (os.path.splitext(fname)[1]).lower()
 
-	def extract_all(self, input_zip):
-		# TODO: extract_zip is not called !? Recursiv not working
-		return {entry: self.extract_zip(entry) for entry in ZipFile(input_zip).namelist() if is_zipfile(entry)}
+			if extn=='.zip':
+				checkz=False
+				tmpfpath = os.path.join(tempdir,os.path.basename(fname))
+				open(tmpfpath,'w+b').write(data)
 
-	def extract_zip(self, input_zip):
-		input_zip = ZipFile(input_zip)
-		return {name: input_zip.read(name) for name in input_zip.namelist()}
+				if is_zipfile(tmpfpath):
+					checkz=True
+					count = count+1
+					print (fname)
+					# check each round
+					if  count > MAX_ZIP:
+						raise ToManyZipException("To many nested zips found - possible zipbomb!")
+				if checkz and not data.startswith(olevba.olefile.MAGIC):
+					try:
+						# recurisve call if nested
+						for x in self.zipwalk(tmpfpath, count):
+							yield x
+					except Exception:
+						raise 
+				try:
+					os.remove(tmpfpath)
+				except:
+					pass
+			else:
+				# retrun the generator
+				yield (info, data)
 
 ## ===== END CLASS ========
-
 
 ## ==== start MAIN ========
 
@@ -381,12 +415,12 @@ def main():
 
 	# make sure the log directory exists:
 	try:
-		os.makedirs(LOGFILE_DIR)
+		os.makedirs(LOGFILE_DIR,0o0750)
 	except:
 		pass
 	# Add the log message handler to the logger
-	# log to files rotating once a day:
-	handler = logging.handlers.TimedRotatingFileHandler(LOGFILE_PATH, when='D', encoding='utf8')
+	# rotation handeld by logrotatd
+	handler = logging.handlers.WatchedFileHandler(LOGFILE_PATH, encoding='utf8')
 	# create formatter and add it to the handlers
 	formatter = logging.Formatter('%(asctime)s - %(levelname)8s: %(message)s')
 	handler.setFormatter(formatter)
