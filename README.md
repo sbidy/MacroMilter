@@ -39,10 +39,23 @@ Video / Talk: (german only): http://events.mi.hdm-stuttgart.de/2016-06-29-mi-pr%
 ## Dependencies
 This milter use the functionality from the oletools (https://bitbucket.org/decalage/oletools) and pymilter (https://pythonhosted.org/milter/) projects.
 
-## Installation (Ubuntu with upstart)
+## Installation
+
+### Debian and Ubuntu
 Download the "ubuntu_install.sh" script from the repo (https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/install_ubuntu.sh). It creates and downloads all required files and packages.
-## Installation script OpenSuse
-```bash
+
+### Fedora
+```
+dnf install macromilter
+systemctl enable --now macromilter.service
+
+postconf -e smtpd_milters=inet:127.0.0.1:3690 -e milter_default_action=accept
+systemctl reload postfix.service
+```
+
+### openSUSE and SUSE Linux Enterprise Server
+```
+bash
 zypper in python-devel sendmail-devel gcc python-pip git
 pip install pymilter
 pip install oletools
@@ -59,15 +72,23 @@ touch /etc/macromilter/whitelist.list
 chown postfix:postfix /var/log/macromilter/
 
 systemctl daemon-reload
-systemctl start macromilter.service
+systemctl enable --now macromilter.service
 systemctl status macromilter.service
-systemctl enable macromilter.service
-
-postconf -e smtpd_milters=inet:127.0.0.1:3690
-postconf -e milter_default_action=accept
-
+postconf -e smtpd_milters=inet:127.0.0.1:3690 -e milter_default_action=accept
 rcpostfix reload
 ```
+
+### Red Hat Enterprise Linux and CentOS
+```
+yum install epel-release  # Only if EPEL is not already enabled
+
+yum install macromilter
+systemctl enable --now macromilter.service
+
+postconf -e smtpd_milters=inet:127.0.0.1:3690 -e milter_default_action=accept
+systemctl reload postfix.service
+```
+
 ## User whitelist
 To allow a user or whole domain to send false-positive VAB-Macro-Mails, enter only the user mail address (xyz@domain.com) or the  domain (@domain.com). See config.ini for more details.
 
