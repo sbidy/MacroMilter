@@ -1,12 +1,7 @@
-# Version 3.0 is available
+# Version 3.4 is available
 Changelog:
-  - Code cleanup and removed the multi-thread feature
-  - Add a config.ini file for the milter configuration 
-  - Update to the new mraptor feature (oletools)
-  - Adapt logging from mraptor
-  - Remove performance logging
-  - BugFix for #9 and #10
-  - Update documentation and add a install script for Ubuntu
+  - Fixed some bugs ( #18, #19, #21),
+  - Update code and doc.
 
 ## Contributing
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
