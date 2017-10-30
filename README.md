@@ -44,7 +44,7 @@ Download the "ubuntu_install.sh" script from the repo (https://raw.githubusercon
 dnf install macromilter
 systemctl enable --now macromilter.service
 
-postconf -e smtpd_milters=inet:127.0.0.1:3690 -e milter_default_action=accept
+postconf -e smtpd_milters=inet:127.0.0.1:3690 milter_default_action=accept
 systemctl reload postfix.service
 ```
 
@@ -69,7 +69,7 @@ chown postfix:postfix /var/log/macromilter/
 systemctl daemon-reload
 systemctl enable --now macromilter.service
 systemctl status macromilter.service
-postconf -e smtpd_milters=inet:127.0.0.1:3690 -e milter_default_action=accept
+postconf -e smtpd_milters=inet:127.0.0.1:3690 milter_default_action=accept
 rcpostfix reload
 ```
 
@@ -80,7 +80,7 @@ yum install epel-release  # Only if EPEL is not already enabled
 yum install macromilter
 systemctl enable --now macromilter.service
 
-postconf -e smtpd_milters=inet:127.0.0.1:3690 -e milter_default_action=accept
+postconf -e smtpd_milters=inet:127.0.0.1:3690 milter_default_action=accept
 systemctl reload postfix.service
 ```
 
