@@ -100,7 +100,7 @@ Be careful with whitelisting! :-)
 ## Authors
 Stephan Traub - Sbidy -> https://github.com/sbidy
 
-heinrichheine -> https://github.com/heinrichheine
+Robert Scheck - robert-scheck -> https://www.robert-scheck.de/
 
 ## Credits
 Philippe Lagadec https://github.com/decalage2 - oletools
