@@ -29,7 +29,7 @@ Video / Talk: (german only): http://events.mi.hdm-stuttgart.de/2016-06-29-mi-pr%
 * Not based on virus heuristics (high detection rate)
 * Whitelisting
 * Creates a hashtable for already scanned files (prevents rescans)
-* Runns at the pre-queue at postfix
+* Runs at the pre-queue at postfix
 
 ## Dependencies
 This milter use the functionality from the oletools (https://bitbucket.org/decalage/oletools) and pymilter (https://pythonhosted.org/milter/) projects.
