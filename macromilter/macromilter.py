@@ -87,7 +87,7 @@ else:
 ## Config see ./config.ini
 __version__ = '3.4'  # version
 
-# get the config from FHS confrom dir (bug #13)
+# get the config from FHS conform dir (bug #13)
 CONFIG = os.path.join(os.path.dirname("/etc/macromilter/"),"config.ini")
 if not os.path.isfile(CONFIG):
 	CONFIG = os.path.join(os.path.dirname(__file__),"config.ini")
@@ -97,6 +97,7 @@ if os.path.isfile(CONFIG):
 	config = SafeConfigParser()
 	config.read(CONFIG)
 	SOCKET = config.get('Milter', 'SOCKET')
+	UMASK = int(config.get('Milter', 'UMASK'), base=0)
 	TIMEOUT = config.getint('Milter', 'TIMEOUT')
 	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
 	MESSAGE = config.get('Milter', 'MESSAGE')
@@ -123,7 +124,7 @@ hash_to_write = None
 hashtable = None
 WhiteList = None
 
-# Custom expetion class for archive bomb exception
+# Custom exception class for archive bomb exception
 class ToManyZipException(Exception):
 	pass
 
@@ -311,7 +312,7 @@ class MacroMilter(Milter.Base):
 
 	def getZipFiles(self, attachment, filename):
 		'''
-			Checks a zip for parsesable files and extract all macros
+			Checks a zip for parsable files and extracts all macros
 		'''
 		log.debug("Found attachment with archive extension - file name: %s" % (filename))
 		vba_code_all_modules = ''
@@ -350,7 +351,7 @@ class MacroMilter(Milter.Base):
 
 	## === Support Functions ===
 	'''
-			Walks through the zip file and gets extracts all data for VBA scanning
+			Walks through the zip file and extracts all data for VBA scanning
 			:return: File content generator
 	'''
 	def zipwalk(self, zfilename, count):
@@ -373,11 +374,11 @@ class MacroMilter(Milter.Base):
 					count = count+1
 					print (fname)
 					# check each round
-					if  count > MAX_ZIP:
-						raise ToManyZipException("To many nested zips found - possible zipbomb!")
+					if count > MAX_ZIP:
+						raise ToManyZipException("Too many nested zips found - possible zipbomb!")
 				if checkz and not data.startswith(olevba.olefile.MAGIC):
 					try:
-						# recurisve call if nested
+						# recursive call if nested
 						for x in self.zipwalk(tmpfpath, count):
 							yield x
 					except Exception:
@@ -396,7 +397,7 @@ class MacroMilter(Milter.Base):
 
 def WhiteListLoad():
 	'''
-		Function to load the data form the WhiteList file and load into memory
+		Function to load the data from the WhiteList file and load into memory
 	'''
 	global WhiteList
 	WhiteList = config.get("Whitelist", "Recipients")
@@ -450,6 +451,10 @@ def main():
 	log.info('Starting MarcoMilter v%s - listening on %s' % (__version__, SOCKET))
 	log.debug('Python version: %s' % sys.version)
 	sys.stdout.flush()
+
+	# ensure desired permissions on unix socket
+	os.umask(UMASK);
+
 	# set the "last" fall back to ACCEPT if exception occur
 	Milter.set_exception_policy(Milter.ACCEPT)
 
