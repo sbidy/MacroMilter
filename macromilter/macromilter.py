@@ -124,6 +124,9 @@ hash_to_write = None
 hashtable = None
 WhiteList = None
 
+# Ensure logfile and hashtable are not world readable
+os.umask(0o0037)
+
 # Custom expetion class for archive bomb exception
 class ToManyZipException(Exception):
 	pass
