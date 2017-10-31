@@ -97,6 +97,7 @@ if os.path.isfile(CONFIG):
 	config = SafeConfigParser()
 	config.read(CONFIG)
 	SOCKET = config.get('Milter', 'SOCKET')
+	UMASK = int(config.get('Milter', 'UMASK'), base=0)
 	TIMEOUT = config.getint('Milter', 'TIMEOUT')
 	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
 	CFG_DIR = config.get('Milter', 'CFG_DIR')
@@ -451,6 +452,10 @@ def main():
 	log.info('Starting MarcoMilter v%s - listening on %s' % (__version__, SOCKET))
 	log.debug('Python version: %s' % sys.version)
 	sys.stdout.flush()
+
+	# ensure desired permissions on unix socket
+	os.umask(UMASK);
+
 	# set the "last" fall back to ACCEPT if exception occur
 	Milter.set_exception_policy(Milter.ACCEPT)
 
