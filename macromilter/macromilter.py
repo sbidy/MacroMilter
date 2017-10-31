@@ -99,7 +99,6 @@ if os.path.isfile(CONFIG):
 	SOCKET = config.get('Milter', 'SOCKET')
 	TIMEOUT = config.getint('Milter', 'TIMEOUT')
 	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
-	CFG_DIR = config.get('Milter', 'CFG_DIR')
 	MESSAGE = config.get('Milter', 'MESSAGE')
 	MAX_ZIP = config.getint('Milter', 'MAX_ZIP')
 	REJECT_MESSAGE = config.getboolean('Milter', 'REJECT_MESSAGE')
