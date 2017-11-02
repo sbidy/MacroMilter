@@ -63,6 +63,7 @@ import logging
 import logging.handlers
 import io
 import traceback
+import tempfile
 
 from sets import Set
 from oletools import olevba, mraptor
@@ -356,7 +357,8 @@ class MacroMilter(Milter.Base):
 	'''
 	def zipwalk(self, zfilename, count):
 		# TODO: Maybe better in memory?!
-		tempdir = os.environ.get('TEMP',os.environ.get('TMP',os.environ.get('TMPDIR','/tmp')))
+		
+		tempdir = tempfile.gettempdir()
 		z = ZipFile(zfilename,'r')
 		# start walk
 		for info in z.infolist():
@@ -366,15 +368,16 @@ class MacroMilter(Milter.Base):
 
 			if extn=='.zip':
 				checkz=False
-				tmpfpath = os.path.join(tempdir,os.path.basename(fname))
-				open(tmpfpath,'w+b').write(data)
+				
+				tempf = tempfile.NamedTemporaryFile(dir=tempdir).write(data)
+				tmpfpath = os.path.join(tempdir,tempf.name())
 
 				if is_zipfile(tmpfpath):
 					checkz=True
 					count = count+1
-					print (fname)
 					# check each round
 					if count > MAX_ZIP:
+						tempf.close();
 						raise ToManyZipException("Too many nested zips found - possible zipbomb!")
 				if checkz and not data.startswith(olevba.olefile.MAGIC):
 					try:
@@ -384,7 +387,7 @@ class MacroMilter(Milter.Base):
 					except Exception:
 						raise 
 				try:
-					os.remove(tmpfpath)
+					tempf.close();
 				except:
 					pass
 			else:
