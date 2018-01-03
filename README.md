@@ -7,6 +7,12 @@ Changelog:
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
 
 To contribute, please fork this repository and make pull requests to the master branch.
+
+## Branches
+#### master = production grade and tested implementation
+
+#### testing = only for testing and non-prod. environments
+
 ## Abstract
 This python based milter for the Sendmail and Postfix e-mail servers (mail-filter) checks an incoming mail for MS 20xx Office attachments. If a MS Office file is attached to the mail it will be scanned for suspicious VBA macro code. Documents with malicious macros are removed and replaced by harmless text files or will be rejected to the sender (see config.ini).
 
@@ -18,8 +24,9 @@ This python based milter for the Sendmail and Postfix e-mail servers (mail-filte
 - Word/Excel Single File Web Page / MHTML (.mht)
 - Publisher (.pub)
 
-Paper (german only): https://github.com/sbidy/MacroMilter/blob/master/Bachelorarbeit%20-%20Traub%2C%20Stephan.pdf
-Video / Talk: (german only): http://events.mi.hdm-stuttgart.de/2016-06-29-mi-pr%C3%A4sentationstag-ss16/MacroMilter%3A%20Malware-Filter%20f%C3%BCr%20E-Mails
+Paper (german only) -> [download link](https://github.com/sbidy/MacroMilter/blob/master/Bachelorarbeit%20-%20Traub%2C%20Stephan.pdf)
+
+Video / Talk (german only) -> [HdM-events](http://events.mi.hdm-stuttgart.de/2016-06-29-mi-pr%C3%A4sentationstag-ss16/MacroMilter%3A%20Malware-Filter%20f%C3%BCr%20E-Mails)
 
 *The repo is optimized for Visual Studio*
 ## Features
@@ -37,7 +44,7 @@ This milter use the functionality from the oletools (https://bitbucket.org/decal
 ## Installation
 
 ### Debian and Ubuntu
-Download the "ubuntu_install.sh" script from the repo (https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/install_ubuntu.sh). It creates and downloads all required files and packages.
+Download the "ubuntu_install.sh" script from the repo - [install_ubuntu.sh](https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/install_ubuntu.sh). It creates and downloads all required files and packages.
 
 ### Fedora
 ```
