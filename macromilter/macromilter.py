@@ -319,14 +319,14 @@ class MacroMilter(Milter.Base):
 		'''
 			Checks a zip for parsable files and extracts all macros
 		'''
-		log.debug("Found attachment with archive extension - file name: %s" % (filename))
+		log.debug("[%d] Found attachment with archive extension - file name: %s" % (self.id, filename))
 		vba_code_all_modules = ''
 		file_object = StringIO.StringIO(attachment)
-		files_in_zip = self.zipwalk(file_object,0)
+		files_in_zip = self.zipwalk(file_object,0,[])
 			
 		for zip_name, zip_data in files_in_zip:
 			# checks if it is a file
-			log.info("File in zip detected! Name: %s - check for VBA" % (zip_name.filename))
+			log.info("[%d] File in zip detected! Name: %s - check for VBA" % (self.id, zip_name.filename))
 			
 			zip_mem_data = StringIO.StringIO(zip_data)
 			name, ext = os.path.splitext(zip_name.filename)
@@ -359,9 +359,8 @@ class MacroMilter(Milter.Base):
 			Walks through the zip file and extracts all data for VBA scanning
 			:return: File content generator
 	'''
-	def zipwalk(self, zfilename, count):
+	def zipwalk(self, zfilename, count, tmpfiles):
 		# TODO: Maybe better in memory?!
-		tmpfiles = []
 		tempdir = tempfile.gettempdir()
 		z = ZipFile(zfilename,'r')
 		# start walk
@@ -384,11 +383,11 @@ class MacroMilter(Milter.Base):
 					# check each round
 					if count > MAX_ZIP:
 						self.delteFileRecursive(tmpfiles)
-						raise ToManyZipException("Too many nested zips found - possible zipbomb!")
+						raise ToManyZipException("[%d] Too many nested zips found - possible zipbomb!" % self.id)
 				if checkz and not data.startswith(olevba.olefile.MAGIC):
 					try:
 						# recursive call if nested
-						for x in self.zipwalk(tmpfpath, count):
+						for x in self.zipwalk(tmpfpath, count, tmpfiles):
 							yield x
 					except Exception:
 						raise 
@@ -402,9 +401,9 @@ class MacroMilter(Milter.Base):
 				yield (info, data)
 
 	def delteFileRecursive(self, filelist):
-		for file in filelist:
+		for sfile in filelist:
 			os.remove(file)
-			log.debug("File %s removed from tmp folder" % (msg_from))
+			log.debug("[%d] File %s removed from tmp folder" % (self.id, sfile))
 ## ===== END CLASS ========
 
 ## ==== start MAIN ========
