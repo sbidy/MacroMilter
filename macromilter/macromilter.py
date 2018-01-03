@@ -64,6 +64,7 @@ import logging.handlers
 import io
 import traceback
 import tempfile
+import shutil
 
 from sets import Set
 from oletools import olevba, mraptor
@@ -98,7 +99,7 @@ if os.path.isfile(CONFIG):
 	config = SafeConfigParser()
 	config.read(CONFIG)
 	SOCKET = config.get('Milter', 'SOCKET')
-	UMASK = int(config.get('Milter', 'UMASK'), base=0)
+	#UMASK = int(config.get('Milter', 'UMASK'), base=0)
 	TIMEOUT = config.getint('Milter', 'TIMEOUT')
 	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
 	MESSAGE = config.get('Milter', 'MESSAGE')
@@ -274,6 +275,8 @@ class MacroMilter(Milter.Base):
 								vba_code_all_modules += zipvba + '\n'
 							except ToManyZipException:
 								log.warning("Attachment %s is reached the max. nested zip count! ZipBomb?: REJECT" % filename)
+								# rewrite the reject message 
+								self.setreply('550', '5.7.2', "The message contains a suspicious archive and was rejected!")
 								return Milter.REJECT
 						# check the rest of the message
 						vba_parser = olevba.VBA_Parser(filename='message', data=attachment)
@@ -357,7 +360,7 @@ class MacroMilter(Milter.Base):
 	'''
 	def zipwalk(self, zfilename, count):
 		# TODO: Maybe better in memory?!
-		
+		tmpfiles = []
 		tempdir = tempfile.gettempdir()
 		z = ZipFile(zfilename,'r')
 		# start walk
@@ -369,15 +372,20 @@ class MacroMilter(Milter.Base):
 			if extn=='.zip':
 				checkz=False
 				
-				tempf = tempfile.NamedTemporaryFile(dir=tempdir).write(data)
-				tmpfpath = os.path.join(tempdir,tempf.name())
+				tempf = tempfile.NamedTemporaryFile(dir=tempdir,delete=False)
+				tempf.write(data)
+				tmpfpath = os.path.join(tempdir,tempf.name)
+				# add tmp filename to list
+				tmpfiles.append(tmpfpath)
 
 				if is_zipfile(tmpfpath):
 					checkz=True
 					count = count+1
 					# check each round
 					if count > MAX_ZIP:
-						tempf.close();
+						tempf.close()
+						tempf.delete()
+						delteFileRecursive(tmpfiles)
 						raise ToManyZipException("Too many nested zips found - possible zipbomb!")
 				if checkz and not data.startswith(olevba.olefile.MAGIC):
 					try:
@@ -385,15 +393,21 @@ class MacroMilter(Milter.Base):
 						for x in self.zipwalk(tmpfpath, count):
 							yield x
 					except Exception:
+						delteFileRecursive(tmpfiles)
 						raise 
 				try:
-					tempf.close();
+					# remove the files from tmp
+					delteFileRecursive(tmpfiles)
 				except:
 					pass
 			else:
 				# retrun the generator
 				yield (info, data)
 
+	def delteFileRecursive(self, filelist):
+		for file in filelist:
+			os.remove(file)
+			log.debug("File %s removed from tmp folder" % (msg_from))
 ## ===== END CLASS ========
 
 ## ==== start MAIN ========
@@ -411,6 +425,7 @@ def HashTableLoad():
 	'''
 	# Load Hashs from file
 	global hashtable
+	os.umask(117)
 	hashtable = set(line.strip() for line in open(HASHTABLE_PATH, 'a+'))
 
 def main():
@@ -420,11 +435,12 @@ def main():
 
 	# make sure the log directory exists:
 	try:
-		os.makedirs(LOGFILE_DIR,0o0750)
+		os.makedirs(LOGFILE_DIR,0o0117)
 	except:
 		pass
 	# Add the log message handler to the logger
 	# rotation handeld by logrotatd
+	os.umask(117)
 	handler = logging.handlers.WatchedFileHandler(LOGFILE_PATH, encoding='utf8')
 	# create formatter and add it to the handlers
 	formatter = logging.Formatter('%(asctime)s - %(levelname)8s: %(message)s')
@@ -454,9 +470,6 @@ def main():
 	log.info('Starting MarcoMilter v%s - listening on %s' % (__version__, SOCKET))
 	log.debug('Python version: %s' % sys.version)
 	sys.stdout.flush()
-
-	# ensure desired permissions on unix socket
-	os.umask(UMASK);
 
 	# set the "last" fall back to ACCEPT if exception occur
 	Milter.set_exception_policy(Milter.ACCEPT)
