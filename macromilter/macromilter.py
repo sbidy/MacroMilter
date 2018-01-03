@@ -425,7 +425,7 @@ def HashTableLoad():
 	'''
 	# Load Hashs from file
 	global hashtable
-	os.umask(117)
+	os.umask(640)
 	hashtable = set(line.strip() for line in open(HASHTABLE_PATH, 'a+'))
 
 def main():
@@ -435,12 +435,12 @@ def main():
 
 	# make sure the log directory exists:
 	try:
-		os.makedirs(LOGFILE_DIR,0o0117)
+		os.makedirs(LOGFILE_DIR,640)
 	except:
 		pass
 	# Add the log message handler to the logger
 	# rotation handeld by logrotatd
-	os.umask(117)
+	os.umask(640)
 	handler = logging.handlers.WatchedFileHandler(LOGFILE_PATH, encoding='utf8')
 	# create formatter and add it to the handlers
 	formatter = logging.Formatter('%(asctime)s - %(levelname)8s: %(message)s')
