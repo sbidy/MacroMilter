@@ -371,20 +371,14 @@ class MacroMilter(Milter.Base):
 
 			if extn=='.zip':
 				checkz=False
-				
-				tempf = tempfile.NamedTemporaryFile(dir=tempdir,delete=False)
-				tempf.write(data)
-				tmpfpath = os.path.join(tempdir,tempf.name)
+				tmpfpath = os.path.join(tempdir,os.path.basename(fname))
 				# add tmp filename to list
 				tmpfiles.append(tmpfpath)
-
 				if is_zipfile(tmpfpath):
 					checkz=True
 					count = count+1
 					# check each round
 					if count > MAX_ZIP:
-						tempf.close()
-						tempf.delete()
 						delteFileRecursive(tmpfiles)
 						raise ToManyZipException("Too many nested zips found - possible zipbomb!")
 				if checkz and not data.startswith(olevba.olefile.MAGIC):
@@ -393,7 +387,6 @@ class MacroMilter(Milter.Base):
 						for x in self.zipwalk(tmpfpath, count):
 							yield x
 					except Exception:
-						delteFileRecursive(tmpfiles)
 						raise 
 				try:
 					# remove the files from tmp
@@ -425,27 +418,30 @@ def HashTableLoad():
 	'''
 	# Load Hashs from file
 	global hashtable
-	os.umask(640)
+	oldumask = os.umask(0o0026)
 	hashtable = set(line.strip() for line in open(HASHTABLE_PATH, 'a+'))
+	os.umask(oldumask)
 
 def main():
+	
+	# make sure the log directory exists:
+	try:
+		os.makedirs(LOGFILE_DIR,0o0027)
+	except:
+		pass
+
 	# Load the whitelist into memory
 	WhiteListLoad()
 	HashTableLoad()
-
-	# make sure the log directory exists:
-	try:
-		os.makedirs(LOGFILE_DIR,640)
-	except:
-		pass
 	# Add the log message handler to the logger
 	# rotation handeld by logrotatd
-	os.umask(640)
+	oldumask = os.umask(0o0026)
 	handler = logging.handlers.WatchedFileHandler(LOGFILE_PATH, encoding='utf8')
 	# create formatter and add it to the handlers
 	formatter = logging.Formatter('%(asctime)s - %(levelname)8s: %(message)s')
 	handler.setFormatter(formatter)
 	log.addHandler(handler)
+	os.umask(oldumask)
 
 	# Loglevels are: 1 = Debug, 2 = Info, 3 = Error
 
