@@ -372,6 +372,9 @@ class MacroMilter(Milter.Base):
 			if extn=='.zip':
 				checkz=False
 				tmpfpath = os.path.join(tempdir,os.path.basename(fname))
+				oldumask = os.umask(0o0066)
+				open(tmpfpath,'w+b').write(data)
+				os.umask(oldumask)
 				# add tmp filename to list
 				tmpfiles.append(tmpfpath)
 				if is_zipfile(tmpfpath):
@@ -379,7 +382,7 @@ class MacroMilter(Milter.Base):
 					count = count+1
 					# check each round
 					if count > MAX_ZIP:
-						delteFileRecursive(tmpfiles)
+						self.delteFileRecursive(tmpfiles)
 						raise ToManyZipException("Too many nested zips found - possible zipbomb!")
 				if checkz and not data.startswith(olevba.olefile.MAGIC):
 					try:
@@ -390,7 +393,7 @@ class MacroMilter(Milter.Base):
 						raise 
 				try:
 					# remove the files from tmp
-					delteFileRecursive(tmpfiles)
+					self.delteFileRecursive(tmpfiles)
 				except:
 					pass
 			else:
