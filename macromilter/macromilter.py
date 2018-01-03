@@ -402,7 +402,7 @@ class MacroMilter(Milter.Base):
 
 	def delteFileRecursive(self, filelist):
 		for sfile in filelist:
-			os.remove(file)
+			os.remove(sfile)
 			log.debug("[%d] File %s removed from tmp folder" % (self.id, sfile))
 ## ===== END CLASS ========
 
