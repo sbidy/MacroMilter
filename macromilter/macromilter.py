@@ -27,7 +27,7 @@
 ## 3.2 - 12.01.2017 sbidy - Fix for exceptions.UnboundLocalError, possible fix for #10 zip - extraction did not work properly
 ## 3.3 - 05.10.2017 sbidy - Update directory for FHS conformity see #13
 ## 3.4 - 27.10.2017 sbidy - Update and fix some bugs #19, #18 and #17 - create release 
-## 3.5.1 - 03.01.2018 sbidy - Fix for #31 #27 #29
+## 3.5.1 - 03.01.2018 sbidy - Fix for #31 #27 #29, some updates for the logging and umask
 
 # The MIT License (MIT)
 
@@ -158,7 +158,7 @@ class MacroMilter(Milter.Base):
 			self.scope = None
 		self.IPname = IPname  # Name from a reverse IP lookup
 		self.messageToParse = None  # content
-		log.debug("Connect from %s at %s" % (IPname, hostaddr)) # for logging
+		log.debug("[%d] Connect from %s at %s" % (self.id, IPname, hostaddr)) # for logging
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -226,7 +226,7 @@ class MacroMilter(Milter.Base):
 		hash_data = hashlib.md5(data).hexdigest()
 		# check if file is already parsed
 		if hash_data in hashtable:
-			log.warning("Attachment %s already parsed: REJECT" % hash_data)
+			log.warning("[%d] Attachment %s already parsed: REJECT" % (self.id, hash_data))
 			return True
 		else:
 			return False
@@ -237,7 +237,7 @@ class MacroMilter(Milter.Base):
 		with open(HASHTABLE_PATH, "a") as hashdb:
 			hashdb.write(hash_data + '\n')
 
-		log.debug("File added: %s" % hash_data)
+		log.debug("[%d] File added: %s" % (self.id, hash_data))
 
 	def checkforVBA(self, msg):
 		'''
@@ -269,13 +269,13 @@ class MacroMilter(Milter.Base):
 						and 'multipart' in attachment_lowercase):
 						vba_code_all_modules = ''
 						# check if the attachment is a zip
-						if is_zipfile(StringIO.StringIO(attachment)):
+						if is_zipfile(StringIO.StringIO(attachment)) and not attachment.startswith(olevba.olefile.MAGIC):
 							# extract all file in zip and add
 							try:
 								zipvba = self.getZipFiles(attachment, filename)
 								vba_code_all_modules += zipvba + '\n'
 							except ToManyZipException:
-								log.warning("Attachment %s is reached the max. nested zip count! ZipBomb?: REJECT" % filename)
+								log.warning("[%d] Attachment %s is reached the max. nested zip count! ZipBomb?: REJECT" % (self.id, filename))
 								# rewrite the reject message 
 								self.setreply('550', '5.7.2', "The message contains a suspicious archive and was rejected!")
 								return Milter.REJECT
@@ -299,7 +299,7 @@ class MacroMilter(Milter.Base):
 								part.set_type('text/plain')
 								part.replace_header('Content-Transfer-Encoding', '7bit')
 						else:
-							log.debug('The attachment %r is clean.' % filename)
+							log.debug('[%d] The attachment %r is clean.' % (self.id, filename)
 
 		except Exception:
 			log.error('[%d] Error while processing the message' % self.id)
