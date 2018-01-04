@@ -273,16 +273,17 @@ class MacroMilter(Milter.Base):
 						and 'multipart' in attachment_lowercase):
 						vba_code_all_modules = ''
 						# check if the attachment is a zip
-						if is_zipfile(attachment_fileobj) and not olefile.isOleFile(attachment_fileobj):
-							# extract all file in zip and add
-							try:
-								zipvba = self.getZipFiles(attachment, filename)
-								vba_code_all_modules += zipvba + '\n'
-							except ToManyZipException:
-								log.warning("[%d] Attachment %s is reached the max. nested zip count! ZipBomb?: REJECT" % (self.id, filename))
-								# rewrite the reject message 
-								self.setreply('550', '5.7.2', "The message contains a suspicious archive and was rejected!")
-								return Milter.REJECT
+						if not olefile.isOleFile(attachment_fileobj):
+							if is_zipfile(attachment_fileobj):
+								# extract all file in zip and add
+								try:
+									zipvba = self.getZipFiles(attachment, filename)
+									vba_code_all_modules += zipvba + '\n'
+								except ToManyZipException:
+									log.warning("[%d] Attachment %s is reached the max. nested zip count! ZipBomb?: REJECT" % (self.id, filename))
+									# rewrite the reject message 
+									self.setreply('550', '5.7.2', "The message contains a suspicious archive and was rejected!")
+									return Milter.REJECT
 						# check the rest of the message
 						vba_parser = olevba.VBA_Parser(filename='message', data=attachment)
 						for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
@@ -398,23 +399,25 @@ class MacroMilter(Milter.Base):
 						for x in self.zipwalk(tmpfpath, count, tmpfiles):
 							yield x
 					except Exception:
+						self.deleteFileRecursive(tmpfiles)
+						tmpfiles = []
 						raise 
-				try:
-					# remove the files from tmp
-					self.deleteFileRecursive(tmpfiles)
-					tmpfiles = []
-				except:
-					pass
 			else:
 				# retrun the generator
-				self.deleteFileRecursive(tmpfiles)
-				tmpfiles = []
 				yield (info, data)
+
+		# cleanup tmp
+		self.deleteFileRecursive(tmpfiles)
+		tmpfiles = []
 
 	def deleteFileRecursive(self, filelist):
 		for sfile in filelist:
-			os.remove(sfile)
-			log.debug("[%d] File %s removed from tmp folder" % (self.id, sfile))
+			try:
+				os.remove(sfile)
+				log.debug("[%d] File %s removed from tmp folder" % (self.id, sfile))
+			except OSError:
+				pass
+
 
 ## ===== END CLASS ========
 
