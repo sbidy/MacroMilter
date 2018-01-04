@@ -90,7 +90,7 @@ else:
 	from zipfile import ZipFile, is_zipfile
 
 ## Config see ./config.ini
-__version__ = '3.5.1'  # version
+__version__ = '3.5.2'  # version
 
 # get the config from FHS conform dir (bug #13)
 CONFIG = os.path.join(os.path.dirname("/etc/macromilter/"),"config.ini")
