@@ -382,7 +382,7 @@ class MacroMilter(Milter.Base):
 					count = count+1
 					# check each round
 					if count > MAX_ZIP:
-						self.delteFileRecursive(tmpfiles)
+						self.deleteFileRecursive(tmpfiles)
 						raise ToManyZipException("[%d] Too many nested zips found - possible zipbomb!" % self.id)
 				if checkz and not data.startswith(olevba.olefile.MAGIC):
 					try:
@@ -393,14 +393,14 @@ class MacroMilter(Milter.Base):
 						raise 
 				try:
 					# remove the files from tmp
-					self.delteFileRecursive(tmpfiles)
+					self.deleteFileRecursive(tmpfiles)
 				except:
 					pass
 			else:
 				# retrun the generator
 				yield (info, data)
 
-	def delteFileRecursive(self, filelist):
+	def deleteFileRecursive(self, filelist):
 		for sfile in filelist:
 			os.remove(sfile)
 			log.debug("[%d] File %s removed from tmp folder" % (self.id, sfile))
