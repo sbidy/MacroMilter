@@ -28,6 +28,7 @@
 ## 3.3 - 05.10.2017 sbidy - Update directory for FHS conformity see #13
 ## 3.4 - 27.10.2017 sbidy - Update and fix some bugs #19, #18 and #17 - create release 
 ## 3.5.1 - 03.01.2018 sbidy - Fix for #31 #27 #29, some updates for the logging and umask
+## 3.5.2 - 04.01.2018 sbidy - update the tempfile handling for more security and some other fixes, re-introduce the UMASK
 
 # The MIT License (MIT)
 
@@ -66,6 +67,7 @@ import io
 import traceback
 import tempfile
 import shutil
+import olefile
 
 from sets import Set
 from oletools import olevba, mraptor
@@ -100,7 +102,7 @@ if os.path.isfile(CONFIG):
 	config = SafeConfigParser()
 	config.read(CONFIG)
 	SOCKET = config.get('Milter', 'SOCKET')
-	#UMASK = int(config.get('Milter', 'UMASK'), base=0)
+	UMASK = int(config.get('Milter', 'UMASK'), base=0)
 	TIMEOUT = config.getint('Milter', 'TIMEOUT')
 	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
 	MESSAGE = config.get('Milter', 'MESSAGE')
@@ -116,7 +118,8 @@ else:
 LOGFILE_PATH = os.path.join(LOGFILE_DIR, LOGFILE_NAME)
 HASHTABLE_PATH = os.path.join(LOGFILE_DIR, "hashtable.db")
 
-EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm"
+# fallback if a file can't detect by the file magic
+EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm", ".rtf", ".mht"
 
 # Set up a specific logger with our desired output level
 log = logging.getLogger('MacroMilter')
@@ -259,17 +262,18 @@ class MacroMilter(Milter.Base):
 						return Milter.CONTINUE
 					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
 					attachment_lowercase = attachment.lower()
+					attachment_fileobj = StringIO.StringIO(attachment)
 					# check if file was already parsed
 					if self.fileHasAlreadyBeenParsed(attachment):
 						return Milter.REJECT
 					# check if this is a supported file type (if not, just skip it)
 					# TODO: this function should be provided by olevba
-					if attachment.startswith(olevba.olefile.MAGIC) or is_zipfile(StringIO.StringIO(attachment)) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
+					if olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
 						or ('mime' in attachment_lowercase and 'version' in attachment_lowercase \
 						and 'multipart' in attachment_lowercase):
 						vba_code_all_modules = ''
 						# check if the attachment is a zip
-						if is_zipfile(StringIO.StringIO(attachment)) and not attachment.startswith(olevba.olefile.MAGIC):
+						if is_zipfile(attachment_fileobj) and not olefile.isOleFile(attachment_fileobj):
 							# extract all file in zip and add
 							try:
 								zipvba = self.getZipFiles(attachment, filename)
@@ -326,12 +330,13 @@ class MacroMilter(Milter.Base):
 			
 		for zip_name, zip_data in files_in_zip:
 			# checks if it is a file
-			log.info("[%d] File in zip detected! Name: %s - check for VBA" % (self.id, zip_name.filename))
-			
+						
 			zip_mem_data = StringIO.StringIO(zip_data)
 			name, ext = os.path.splitext(zip_name.filename)
 			# send to the VBA_Parser
-			if zip_mem_data.getvalue().startswith(olevba.olefile.MAGIC) or ext in EXTENSIONS:
+			# fallback with extensions - mybe removed in future releases
+			if olefile.isOleFile(zip_mem_data) or ext in EXTENSIONS:
+				log.info("[%d] File in zip detected! Name: %s - check for VBA" % (self.id, zip_name.filename))
 				vba_parser = olevba.VBA_Parser(filename=zip_name.filename, data=zip_data)
 				for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
 					vba_code_all_modules += vba_code + '\n'
@@ -360,8 +365,7 @@ class MacroMilter(Milter.Base):
 			:return: File content generator
 	'''
 	def zipwalk(self, zfilename, count, tmpfiles):
-		# TODO: Maybe better in memory?!
-		tempdir = tempfile.gettempdir()
+
 		z = ZipFile(zfilename,'r')
 		# start walk
 		for info in z.infolist():
@@ -369,22 +373,26 @@ class MacroMilter(Milter.Base):
 			data = z.read(fname)
 			extn = (os.path.splitext(fname)[1]).lower()
 
-			if extn=='.zip':
+			# create a random secure temp file
+			tmp_fs, tmpfpath = tempfile.mkstemp(suffix=extn)
+			# add tmp filename to list
+			tmpfiles.append(tmpfpath)
+
+			if extn=='.zip' or extn=='.7z':
 				checkz=False
-				tmpfpath = os.path.join(tempdir,os.path.basename(fname))
-				oldumask = os.umask(0o0066)
-				open(tmpfpath,'w+b').write(data)
-				os.umask(oldumask)
-				# add tmp filename to list
-				tmpfiles.append(tmpfpath)
+				# use a context manager to open the file
+				with open(tmpfpath, 'w') as f:
+					f.write(data)
+
 				if is_zipfile(tmpfpath):
 					checkz=True
 					count = count+1
 					# check each round
 					if count > MAX_ZIP:
 						self.deleteFileRecursive(tmpfiles)
+						tmpfiles = []
 						raise ToManyZipException("[%d] Too many nested zips found - possible zipbomb!" % self.id)
-				if checkz and not data.startswith(olevba.olefile.MAGIC):
+				if checkz and not olefile.isOleFile(data):
 					try:
 						# recursive call if nested
 						for x in self.zipwalk(tmpfpath, count, tmpfiles):
@@ -394,16 +402,20 @@ class MacroMilter(Milter.Base):
 				try:
 					# remove the files from tmp
 					self.deleteFileRecursive(tmpfiles)
+					tmpfiles = []
 				except:
 					pass
 			else:
 				# retrun the generator
+				self.deleteFileRecursive(tmpfiles)
+				tmpfiles = []
 				yield (info, data)
 
 	def deleteFileRecursive(self, filelist):
 		for sfile in filelist:
 			os.remove(sfile)
 			log.debug("[%d] File %s removed from tmp folder" % (self.id, sfile))
+
 ## ===== END CLASS ========
 
 ## ==== start MAIN ========
@@ -469,6 +481,9 @@ def main():
 	log.info('Starting MarcoMilter v%s - listening on %s' % (__version__, SOCKET))
 	log.debug('Python version: %s' % sys.version)
 	sys.stdout.flush()
+
+	# ensure desired permissions on unix socket
+	os.umask(UMASK);
 
 	# set the "last" fall back to ACCEPT if exception occur
 	Milter.set_exception_policy(Milter.ACCEPT)
