@@ -274,7 +274,9 @@ class MacroMilter(Milter.Base):
 						vba_code_all_modules = ''
 						# check if the attachment is a zip
 						if not olefile.isOleFile(attachment_fileobj):
-							if is_zipfile(attachment_fileobj):
+							extn = (os.path.splitext(filename)[1]).lower()
+							# skip non arcives
+							if is_zipfile(attachment_fileobj) and not (".docx" in extn or ".xlsx" in extn  or ".pptx" in extn):
 								# extract all file in zip and add
 								try:
 									zipvba = self.getZipFiles(attachment, filename)
