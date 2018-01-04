@@ -293,13 +293,13 @@ class MacroMilter(Milter.Base):
 							if REJECT_MESSAGE:
 								log.warning('[%d] The attachment %r contains a suspicious macro: REJECT' % (self.id, filename))
 								result = Milter.REJECT
-							else :
+							else:
 								log.warning('[%d] The attachment %r contains a suspicious macro: replace it with a text file' % (self.id, filename))
 								part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 								part.set_type('text/plain')
 								part.replace_header('Content-Transfer-Encoding', '7bit')
 						else:
-							log.debug('[%d] The attachment %r is clean.' % (self.id, filename)
+							log.debug('[%d] The attachment %r is clean.' % (self.id, filename))
 
 		except Exception:
 			log.error('[%d] Error while processing the message' % self.id)
