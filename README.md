@@ -1,12 +1,14 @@
-# Version 3.4 is available
+# Version 3.5.2 is available
 Changelog:
-  - Fixed some bugs ( #18, #19, #21),
-  - Update code and doc.
+ - Fixed some bugs (zip handling, access rights ...)
+ - Preparation for python 3 compatibility
+ - some minor changes and improvements
+ - standardize the log messages
 
 ## Contributing
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
 
-To contribute, please fork this repository and make pull requests to the master branch.
+To contribute, please fork this repository and make pull requests to the master or testing branch.
 
 ## Branches
 #### master = production grade and tested implementation
@@ -47,7 +49,7 @@ This milter use the functionality from the oletools (https://bitbucket.org/decal
 Download the "ubuntu_install.sh" script from the repo - [install_ubuntu.sh](https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/install_ubuntu.sh). It creates and downloads all required files and packages.
 
 ### Fedora
-```
+```bash
 dnf install macromilter
 systemctl enable --now macromilter.service
 
@@ -55,33 +57,8 @@ postconf -e smtpd_milters=inet:127.0.0.1:3690 milter_default_action=accept
 systemctl reload postfix.service
 ```
 
-### openSUSE and SUSE Linux Enterprise Server
-```
-bash
-zypper in python-devel sendmail-devel gcc python-pip git
-pip install pymilter
-pip install oletools
-git clone https://github.com/sbidy/MacroMilter
-#git clone https://github.com/Gulaschcowboy/MacroMilter
-mkdir -p /etc/macromilter/
-mkdir -p /var/log/macromilter/
-mkdir /var/log/macromilter/log
-cp MacroMilter/MacroMilter/macromilter.py /etc/macromilter/
-cp MacroMilter/MacroMilter/macromilter.service /etc/systemd/system/
-cp MacroMilter/MacroMilter/macromilter.logrotate /etc/logrotate.d/
-
-touch /etc/macromilter/whitelist.list
-chown postfix:postfix /var/log/macromilter/
-
-systemctl daemon-reload
-systemctl enable --now macromilter.service
-systemctl status macromilter.service
-postconf -e smtpd_milters=inet:127.0.0.1:3690 milter_default_action=accept
-rcpostfix reload
-```
-
 ### Red Hat Enterprise Linux and CentOS
-```
+```bash
 yum install epel-release  # Only if EPEL is not already enabled
 
 yum install macromilter
@@ -93,8 +70,6 @@ systemctl reload postfix.service
 
 ## User whitelist
 To allow a user or whole domain to send false-positive VAB-Macro-Mails, enter only the user mail address (xyz@domain.com) or the  domain (@domain.com). See config.ini for more details.
-
-Be careful with whitelisting! :-)
 
 ## TBD
 * Add some advanced logic to the whitelist
