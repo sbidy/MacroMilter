@@ -242,6 +242,14 @@ class MacroMilter(Milter.Base):
 
 		log.debug("[%d] File added: %s" % (self.id, hash_data))
 
+	def removeHashFromDB(self, data):
+		hash_data = hashlib.md5(data).hexdigest()
+		hashtable.remove(hash_data)
+		with open(HASHTABLE_PATH, "a") as hashdb:
+			for line in hashdb:
+				if line != hash_data + "\n":
+					hashdb.write(line)
+
 	def checkforVBA(self, msg):
 		'''
 			Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
@@ -300,7 +308,8 @@ class MacroMilter(Milter.Base):
 						if vba_code_all_modules is not None:
 							if self.macro_is_in_whitelist(vba_code_all_modules):
 								# macro code is in whitelist
-								return Milter.CONTINUE
+								self.removeHashFromDB(attachment)
+								return Milter.ACCEPT
 
 						# run the mraptor
 						m = mraptor.MacroRaptor(vba_code_all_modules)
@@ -396,7 +405,7 @@ class MacroMilter(Milter.Base):
 		log.info("[%d] The macro hash is: %s" % (self.id, vba_hash))
 
 		if Hash_Whitelist is not None:
-			for hash in WhiteList:
+			for hash in Hash_Whitelist:
 				if hash in vba_hash:
 					log.info("Whitelisted macro code %s - accept attachment" % (vba_hash))
 					return True
