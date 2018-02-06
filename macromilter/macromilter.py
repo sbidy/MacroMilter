@@ -108,7 +108,6 @@ if os.path.isfile(CONFIG):
 	LOGFILE_DIR = config.get('Logging', 'LOGFILE_DIR')
 	LOGFILE_NAME = config.get('Logging', 'LOGFILE_NAME')
 	LOGLEVEL = config.getint('Logging', 'LOGLEVEL')
-	HASH_W
 else:
 	sys.exit("Please check the config file! Config path: %s" % CONFIG)
 # =============================================================================
