@@ -29,6 +29,7 @@
 ## 3.4 - 27.10.2017 sbidy - Update and fix some bugs #19, #18 and #17 - create release 
 ## 3.5.1 - 03.01.2018 sbidy - Fix for #31 #27 #29, some updates for the logging and umask
 ## 3.5.2 - 04.01.2018 sbidy - update the tempfile handling for more security and some other fixes, re-introduce the UMASK
+## 3.5.3 - 06.02.2018 sbidy - implementing the macro whitelisting, update the config parsing to json
 
 # The MIT License (MIT)
 
@@ -68,6 +69,7 @@ import traceback
 import tempfile
 import shutil
 import olefile
+import json
 
 from sets import Set
 from oletools import olevba, mraptor
@@ -85,7 +87,7 @@ else:
 	from zipfile import ZipFile, is_zipfile
 
 ## Config see ./config.ini
-__version__ = '3.5.3'  # version
+__version__ = '3.5.4'  # version
 
 # get the config from FHS conform dir (bug #13)
 CONFIG = os.path.join(os.path.dirname("/etc/macromilter/"),"config.ini")
@@ -201,25 +203,25 @@ class MacroMilter(Milter.Base):
 		'''This method is called when the end of the email message has been reached.
 		   This event also triggers the milter specific actions
 		'''
-		#try:
+		try:
 			# set data pointer back to 0
-		self.messageToParse.seek(0)
+			self.messageToParse.seek(0)
 			# use email from package email to parse the message string
-		msg = email.message_from_string(self.messageToParse.getvalue())
+			msg = email.message_from_string(self.messageToParse.getvalue())
 			# Set Reject Message - definition from here
 			# https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
-		self.setreply('550', '5.7.1', MESSAGE)
+			self.setreply('550', '5.7.1', MESSAGE)
 			
-		if self.sender_is_in_whitelist():
-			return Milter.ACCEPT
-		else:
-			return self.checkforVBA(msg)
+			if self.sender_is_in_whitelist():
+				return Milter.ACCEPT
+			else:
+				return self.checkforVBA(msg)
 
-		#except Exception:
-		#	exc_type, exc_obj, exc_tb = sys.exc_info()
-		#	fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-		#	log.error("Unexpected error - fall back to ACCEPT: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
-		#	return Milter.ACCEPT
+		except Exception:
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			log.error("Unexpected error - fall back to ACCEPT: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
+			return Milter.ACCEPT
 
 	## ==== Data processing ====
 
@@ -277,7 +279,8 @@ class MacroMilter(Milter.Base):
 						# check if the attachment is a zip
 						if not olefile.isOleFile(attachment_fileobj):
 							extn = (os.path.splitext(filename)[1]).lower()
-							# skip non arcives
+
+							# skip non archives
 							if is_zipfile(attachment_fileobj) and not (".docx" in extn or ".xlsx" in extn  or ".pptx" in extn):
 								# extract all file in zip and add
 								try:
@@ -288,10 +291,12 @@ class MacroMilter(Milter.Base):
 									# rewrite the reject message 
 									self.setreply('550', '5.7.2', "The message contains a suspicious archive and was rejected!")
 									return Milter.REJECT
+
 						# check the rest of the message
 						vba_parser = olevba.VBA_Parser(filename='message', data=attachment)
 						for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
 							vba_code_all_modules += vba_code + '\n'
+
 						# check the macro code whitelist
 						if vba_code_all_modules is not None:
 							if self.macro_is_in_whitelist(vba_code_all_modules):
@@ -304,7 +309,7 @@ class MacroMilter(Milter.Base):
 						# suspicious 
 						if m.autoexec and (m.execute or m.write):
 							# Add MD5 to the database
-							# self.addHashtoDB(attachment)
+							self.addHashtoDB(attachment)
 							# Replace the attachment or reject it
 							if REJECT_MESSAGE:
 								log.warning('[%d] The attachment %r contains a suspicious macro: REJECT' % (self.id, filename))
@@ -371,21 +376,11 @@ class MacroMilter(Milter.Base):
 		if WhiteList is not None:
 			log.debug("[%d] Whitelist compare: %s = %s" % (self.id, msg_from, msg_to))
 			# check if it is a list
-			if "," in WhiteList:
-				WhiteList = WhiteList.split(",")
-				for name in WhiteList:
-					name = name.replace("\"","")
-					if name in msg_from:
-						log.info("Whitelisted user %s - accept all attachments" % (msg_from))
-						return True
-					if name in msg_to:
-						log.info("Whitelisted user %s - accept all attachments" % (msg_to))
-						return True
-			else:
-				if WhiteList == msg_from:
-					log.info("Whitelisted user %s - accept all attachments" % (msg_from))
+			for name in WhiteList:
+				if name in msg_from:
+					log.info("Whitelisted user %s - accept all attachments" % (msg_from))	
 					return True
-				if WhiteList in msg_to:
+				if name in msg_to:
 					log.info("Whitelisted user %s - accept all attachments" % (msg_to))
 					return True
 		return False
@@ -402,14 +397,8 @@ class MacroMilter(Milter.Base):
 		log.info("[%d] The macro hash is: %s" % (self.id, vba_hash))
 
 		if Hash_Whitelist is not None:
-			if "," in WhiteList:
-				WhiteList = WhiteList.split(",")
-				for hash in WhiteList:
-					if hash in vba_hash:
-						log.info("Whitelisted macro code %s - accept attachment" % (vba_hash))
-						return True
-			else:
-				if Hash_Whitelist in vba_hash:
+			for hash in WhiteList:
+				if hash in vba_hash:
 					log.info("Whitelisted macro code %s - accept attachment" % (vba_hash))
 					return True
 		return False
@@ -482,8 +471,8 @@ def WhiteListLoad():
 		Function to load the data from the WhiteList file and load into memory
 	'''
 	global WhiteList, Hash_Whitelist
-	WhiteList = config.get("Whitelist", "Recipients")
-	Hash_Whitelist = config.get("Whitelist", "Macrohash")
+	WhiteList = json.loads(config.get("Whitelist", "Recipients"))
+	Hash_Whitelist = json.loads(config.get("Whitelist", "Macrohash"))
 
 def HashTableLoad():
 	'''
