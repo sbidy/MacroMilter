@@ -30,6 +30,8 @@ Paper (german only) -> [download link](https://github.com/sbidy/MacroMilter/blob
 
 Video / Talk (german only) -> [HdM-events](http://events.mi.hdm-stuttgart.de/2016-06-29-mi-pr%C3%A4sentationstag-ss16/MacroMilter%3A%20Malware-Filter%20f%C3%BCr%20E-Mails)
 
+Chemnitzer Linux Tage 2018 - Talk -> [CLT2018](https://chemnitzer.linux-tage.de/2018/de/programm/beitrag/304)
+
 *The repo is optimized for Visual Studio*
 ## Features
 * Parsing VBA macros for suspicious code and function calls
