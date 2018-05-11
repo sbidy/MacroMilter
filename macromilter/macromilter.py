@@ -275,7 +275,7 @@ class MacroMilter(Milter.Base):
 						# check if the attachment is a zip
 						if not olefile.isOleFile(attachment_fileobj):
 							extn = (os.path.splitext(filename)[1]).lower()
-							# skip non arcives
+							# skip non archives
 							if is_zipfile(attachment_fileobj) and not (".docx" in extn or ".xlsx" in extn  or ".pptx" in extn):
 								# extract all file in zip and add
 								try:
@@ -337,7 +337,7 @@ class MacroMilter(Milter.Base):
 			zip_mem_data = StringIO.StringIO(zip_data)
 			name, ext = os.path.splitext(zip_name.filename)
 			# send to the VBA_Parser
-			# fallback with extensions - mybe removed in future releases
+			# fallback with extensions - maybe removed in future releases
 			if olefile.isOleFile(zip_mem_data) or ext in EXTENSIONS:
 				log.info("[%d] File in zip detected! Name: %s - check for VBA" % (self.id, zip_name.filename))
 				vba_parser = olevba.VBA_Parser(filename=zip_name.filename, data=zip_data)
@@ -405,7 +405,7 @@ class MacroMilter(Milter.Base):
 						tmpfiles = []
 						raise 
 			else:
-				# retrun the generator
+				# return the generator
 				yield (info, data)
 
 		# cleanup tmp
