@@ -102,7 +102,10 @@ if os.path.isfile(CONFIG):
 	config = SafeConfigParser()
 	config.read(CONFIG)
 	SOCKET = config.get('Milter', 'SOCKET')
-	UMASK = int(config.get('Milter', 'UMASK'), base=0)
+	try:
+		UMASK = int(config.get('Milter', 'UMASK'), base=0)
+	except:
+		UMASK = 0o0077
 	TIMEOUT = config.getint('Milter', 'TIMEOUT')
 	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
 	MESSAGE = config.get('Milter', 'MESSAGE')
