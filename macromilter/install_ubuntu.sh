@@ -7,7 +7,7 @@ mkdir -p /var/log/macromilter/
 
 # install macromilter dependencies
 apt-get update
-apt-get install python2.7 python2.7-dev libmilter-dev libmilter1.0.1 python-pip
+apt-get -y install python2.7 python2.7-dev libmilter-dev libmilter1.0.1 python-pip
 
 # install oletools
 pip install oletools
@@ -33,6 +33,7 @@ initctl reload-configuration
 chown postfix:postfix -R /etc/macromilter
 chown postfix:postfix -R /var/log/macromilter
 chown postfix:postfix /usr/bin/macromilter.py
+chmod 755 /usr/bin/macromilter.py
 
 # only needed if you run the milter at chroot an with a linux-socket
 # chown postfix:postfix -R /var/spool/postfix/etc/milter 
