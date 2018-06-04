@@ -48,7 +48,7 @@ This milter use the functionality from the oletools (https://bitbucket.org/decal
 ## Installation
 
 ### Debian and Ubuntu
-Download the "ubuntu_install.sh" script from the repo - [install_ubuntu.sh](https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/install_ubuntu.sh). It creates and downloads all required files and packages.
+Download the "install_ubuntu.sh" script from the repo - [install_ubuntu.sh](https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/install_ubuntu.sh). It creates and downloads all required files and packages.
 
 ### Fedora
 ```bash
