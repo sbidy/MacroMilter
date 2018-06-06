@@ -500,8 +500,11 @@ def main():
 	Milter.set_exception_policy(Milter.ACCEPT)
 
 	# start the milter
-	Milter.runmilter("MacroMilter", SOCKET, TIMEOUT)
-
+	try:
+		Milter.runmilter("MacroMilter", SOCKET, TIMEOUT)
+	except:
+		print("MacroMilter starting milter failed")
+		
 	print("%s MacroMilter shutdown" % time.strftime('%Y-%m-%d %H:%M:%S'))
 
 if __name__ == "__main__":
