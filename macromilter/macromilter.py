@@ -134,7 +134,7 @@ hashtable = None
 WhiteList = None
 
 # Custom exception class for archive bomb exception
-class ToManyZipException(Exception):
+class TooManyZipException(Exception):
 	pass
 
 ## Customized milter class - partly copied from
@@ -284,7 +284,7 @@ class MacroMilter(Milter.Base):
 								try:
 									zipvba = self.getZipFiles(attachment, filename)
 									vba_code_all_modules += zipvba + '\n'
-								except ToManyZipException:
+								except TooManyZipException:
 									log.warning("[%d] Attachment %s is reached the max. nested zip count! ZipBomb?: REJECT" % (self.id, filename))
 									# rewrite the reject message 
 									self.setreply('550', '5.7.2', "The message contains a suspicious archive and was rejected!")
@@ -397,7 +397,7 @@ class MacroMilter(Milter.Base):
 					if count > MAX_ZIP:
 						self.deleteFileRecursive(tmpfiles)
 						tmpfiles = []
-						raise ToManyZipException("[%d] Too many nested zips found - possible zipbomb!" % self.id)
+						raise TooManyZipException("[%d] Too many nested zips found - possible zipbomb!" % self.id)
 				if checkz and not olefile.isOleFile(data):
 					try:
 						# recursive call if nested
