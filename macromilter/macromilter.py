@@ -320,7 +320,7 @@ class MacroMilter(Milter.Base):
 			exc_type, exc_value, exc_traceback = sys.exc_info()
 			lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
 			exep = ''.join('!! ' + line for line in lines)
-			log.debug("[%d] Exeption code: [%s]" % (self.id, exep))
+			log.debug("[%d] Exception code: [%s]" % (self.id, exep))
 
 		if REJECT_MESSAGE is False:
 			body = str(msg)
