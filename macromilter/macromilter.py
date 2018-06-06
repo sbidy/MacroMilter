@@ -383,7 +383,7 @@ class MacroMilter(Milter.Base):
 			extn = (os.path.splitext(fname)[1]).lower()
 
 			# create a random secure temp file
-			tmp_fs, tmpfpath = tempfile.mkstemp(suffix=extn)
+			tmp_fs, tmpfpath = tempfile.mkstemp(suffix=extn, prefix='macromilter')
 			# add tmp filename to list
 			tmpfiles.append(tmpfpath)
 
