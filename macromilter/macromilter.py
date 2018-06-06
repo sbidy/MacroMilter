@@ -436,7 +436,7 @@ def WhiteListLoad():
 		Function to load the data from the WhiteList file and load into memory
 	'''
 	global WhiteList
-	WhiteList = config.get("Whitelist", "Recipients")
+	WhiteList = config.get("Whitelist", "Senders")
 
 def HashTableLoad():
 	'''
