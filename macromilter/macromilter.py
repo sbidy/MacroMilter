@@ -122,7 +122,7 @@ LOGFILE_PATH = os.path.join(LOGFILE_DIR, LOGFILE_NAME)
 HASHTABLE_PATH = os.path.join(LOGFILE_DIR, "hashtable.db")
 
 # fallback if a file can't detect by the file magic
-EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm", ".rtf", ".mht"
+EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm", ".rtf", ".mht", ".ppt"
 
 # Set up a specific logger with our desired output level
 log = logging.getLogger('MacroMilter')
