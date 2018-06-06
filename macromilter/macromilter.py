@@ -172,6 +172,7 @@ class MacroMilter(Milter.Base):
 		self.messageToParse = StringIO.StringIO()
 		self.canon_from = '@'.join(parse_addr(mailfrom))
 		self.messageToParse.write('From %s %s\n' % (self.canon_from, time.ctime()))
+		log.debug("[%d] Envelope sender: %s" % (self.id, mailfrom)) # for logging
 		return Milter.CONTINUE
 
 	@Milter.noreply
