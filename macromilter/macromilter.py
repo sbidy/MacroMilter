@@ -68,6 +68,7 @@ import traceback
 import tempfile
 import shutil
 import olefile
+import ast
 
 from sets import Set
 from oletools import olevba, mraptor
@@ -362,8 +363,8 @@ class MacroMilter(Milter.Base):
 			sender = str(re.findall('<([^"]*)>', msg_from ))
 
 		if WhiteList is not None:
-			for name in WhiteList:
-				if re.search(name, sender) and not name.startswith("#"):
+			for entry in WhiteList:
+				if re.search(entry, sender) and not entry.startswith("#"):
 					log.info("Whitelisted user %s - accept all attachments" % (msg_from))
 					return True
 		return False
@@ -436,7 +437,8 @@ def WhiteListLoad():
 		Function to load the data from the WhiteList file and load into memory
 	'''
 	global WhiteList
-	WhiteList = config.get("Whitelist", "Senders")
+	WhiteList = ast.literal_eval(config.get("Whitelist", "Senders"))
+	log.debug("Whitelist is: %s" % WhiteList)
 
 def HashTableLoad():
 	'''
