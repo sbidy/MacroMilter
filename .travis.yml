@@ -10,9 +10,9 @@ python:
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y -qq postfix
-  - pip install oletools
-  - pip install pymilter
-  - pip install configparser
+  - sudo -H pip install -U oletools
+  - sudo pip install pymilter
+  - sudo pip install configparser
 
 before_script:
   - sudo service postfix stop
