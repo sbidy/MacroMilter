@@ -9,7 +9,7 @@ python:
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y -qq postfix libmilter-dev libmilter1.0.1 sendemail
-  - sudo -H pip install -U oletools
+  - sudo pip install oletools
   - sudo pip install pymilter
   - sudo pip install configparser
 
