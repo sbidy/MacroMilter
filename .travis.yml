@@ -27,14 +27,16 @@ before_script:
   - sudo cp ./macromilter/config.ini /etc/macromilter/
   - sudo cp ./macromilter/MacroMilter.conf /etc/init/
   - sudo init-checkconf /etc/init/MacroMilter.conf
+  - sudo initctl log-priority debug
   - sudo initctl reload-configuration
   - sudo chown postfix:postfix -R /etc/macromilter
   - sudo chown postfix:postfix -R /var/log/macromilter
   - sudo chown postfix:postfix /usr/bin/macromilter.py
   - sudo service MacroMilter start
+  - sudo service MacroMilter status
 
 script:
-  - sudo tail -n 100 /var/log/upstart/MacroMilter.log
+  - sudo tail -n 100 /var/log/upstart/MacroMilter*
   - sudo tail -n 100 /var/log/macromilter/run.log
   #- sudo /usr/bin/python /usr/bin/macromilter.py
   - sudo tail /var/log/macromilter/macromilter.log
