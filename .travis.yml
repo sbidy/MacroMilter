@@ -33,7 +33,7 @@ before_script:
   - sudo chown postfix:postfix -R /var/log/macromilter
   - sudo chown postfix:postfix /usr/bin/macromilter.py
   - sudo service MacroMilter start
-  - sudo sudo dmesg | grep MacroMilter
+  - sudo dmesg | grep MacroMilter
 
 script:
   #- sudo /usr/bin/python /usr/bin/macromilter.py
