@@ -1,6 +1,5 @@
 language: phyton
 
-language: python
 python:
   - "2.6"
   - "2.7"
@@ -15,8 +14,7 @@ before_install:
   - pip install pymilter
   - pip install configparser
 
-
-  before_script:
+before_script:
   - sudo service postfix stop
   - sudo postconf -e smtpd_milters=inet:127.0.0.1:3690
   - sudo postconf -e milter_default_action=accept
