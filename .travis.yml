@@ -35,6 +35,6 @@ before_script:
 
 script:
 
-  - sudo -i -u postfix /usr/bin/python /usr/bin/macromilter.py
+  - sudo /usr/bin/python /usr/bin/macromilter.py
   #- sudo tail /var/log/macromilter/macromilter.log
   - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -v
