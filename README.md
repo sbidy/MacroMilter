@@ -1,4 +1,6 @@
 # Version 3.5.2 is available
+[![Build Status](https://travis-ci.com/sbidy/MacroMilter.svg?branch=master)](https://travis-ci.com/sbidy/MacroMilter)
+
 Changelog:
  - Fixed some bugs (zip handling, access rights ...)
  - Preparation for python 3 compatibility
