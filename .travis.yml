@@ -38,5 +38,4 @@ before_script:
 script:
   - sudo -i postfix /usr/bin/python /usr/bin/macromilter.py &
   - sudo tail -n 100 /var/log/macromilter/macromilter.log
-  - sudo tail -n 100 /var/log/upstart/MacroMilter.log
-  - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/rechnung-postmaster789.zip -v
+  - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
