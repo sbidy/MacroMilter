@@ -18,8 +18,17 @@ before_script:
   - sudo postconf -e smtpd_milters=inet:127.0.0.1:3690
   - sudo postconf -e milter_default_action=accept
   - sudo service postfix start
-  - sudo ls
-  - sudo sh ./macromilter/install_ubuntu.sh
-  
+  - mkdir /etc/macromilter/
+  - mkdir -p /var/log/macromilter/
+  - cp ./macromilter/macromilter.py /usr/bin/
+  - cp ./macromilter/config.ini /etc/macromilter/
+  - cp ./macromilter/MacroMilter.conf /etc/init/
+  - initctl reload-configuration
+  - chown postfix:postfix -R /etc/macromilter
+  - chown postfix:postfix -R /var/log/macromilter
+  - chown postfix:postfix /usr/bin/macromilter.py
+  - service MacroMilter start
+  - tail /var/log/macromilter/macromilter.log
+
 script:
   - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -v
