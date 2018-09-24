@@ -1,4 +1,5 @@
 language: phyton
+sudo: false
 
 python:
   - "2.7"
@@ -33,10 +34,10 @@ before_script:
   - sudo chown postfix:postfix -R /var/log/macromilter
   - sudo chown postfix:postfix /usr/bin/macromilter.py
   - sudo chmod +x /usr/bin/macromilter.py
-  #- sudo service MacroMilter start
+  - sudo service MacroMilter start
 
 script:
-  - sudo -i postfix /usr/bin/python /usr/bin/macromilter.py
+  #- sudo -i postfix /usr/bin/python /usr/bin/macromilter.py &
   - sudo tail -n 100 /var/log/macromilter/macromilter.log
   - sudo tail -n 100 /var/log/upstart/MacroMilter.log
   - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -v
