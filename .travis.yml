@@ -17,5 +17,6 @@ before_script:
   - sudo service postfix stop
   - sudo postconf -e smtpd_milters=inet:127.0.0.1:3690
   - sudo postconf -e milter_default_action=accept
+  - sudo service postfix start
   - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -v
 
