@@ -30,10 +30,13 @@ before_script:
   - sudo initctl log-priority debug
   - sudo initctl reload-configuration
   - sudo chown postfix:postfix -R /etc/macromilter
+  - sudo ls -la /etc/ | grep macromilter
   - sudo chown postfix:postfix -R /var/log/macromilter
+  - sudo ls -la /var/log/ | grep macromilter
   - sudo chown postfix:postfix /usr/bin/macromilter.py
+  - sudo ls -la /usr/bin/ | grep macromilter
   - sudo service MacroMilter start
-  - sudo dmesg | grep MacroMilter
+  - sudo ls -l /var/log/upstart
 
 script:
   #- sudo /usr/bin/python /usr/bin/macromilter.py
