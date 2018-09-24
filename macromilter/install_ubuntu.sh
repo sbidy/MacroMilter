@@ -15,6 +15,7 @@ pip install oletools
 pip install pymilter
 # install configparser
 pip install configparser
+pip install olefile
 
 # copy the python script
 cd /usr/bin/

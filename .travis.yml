@@ -13,6 +13,7 @@ before_install:
   - sudo pip install oletools
   - sudo pip install pymilter
   - sudo pip install configparser
+  - sudo pip install olefile
 
 before_script:
   - sudo service postfix stop
