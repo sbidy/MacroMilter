@@ -20,5 +20,6 @@ before_script:
   - sudo service postfix start
   - sudo ls
   - sudo sh ./macromilter/install_ubuntu.sh
-script
+  
+script:
   - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -v
