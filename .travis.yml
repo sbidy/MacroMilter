@@ -34,7 +34,7 @@ before_script:
   - sudo chown postfix:postfix /usr/bin/macromilter.py
   - sudo chmod +x /usr/bin/macromilter.py
   - sudo service MacroMilter start
-
+  - sudo dmesg | tail -n 300
 
 script:
   #- sudo /usr/bin/python /usr/bin/macromilter.py
