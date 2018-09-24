@@ -6,11 +6,11 @@ mkdir -p /var/log/macromilter/
 # mkdir /var/spool/postfix/etc/milter
 
 # copy the python script
-cp /home/sbidy/macromilter/macromilter.py /usr/bin/
-cp /home/sbidy/macromilter/config.ini /etc/macromilter/
+cp ./macromilter/macromilter.py /usr/bin/
+cp ./macromilter/config.ini /etc/macromilter/
 
 # setup upstart config
-cp /home/sbidy/macromilter/MacroMilter.conf /etc/init/
+cp ./macromilter/MacroMilter.conf /etc/init/
 initctl reload-configuration
 
 # set chown for postfix
