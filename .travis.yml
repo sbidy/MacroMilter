@@ -32,7 +32,7 @@ before_script:
   - sudo chown postfix:postfix -R /var/log/macromilter
   - sudo chown postfix:postfix /usr/bin/macromilter.py
   - sudo service MacroMilter start
-  - sudo tail -n 100 /var/log/upstart/MacroMilter
+  - sudo tail -n 100 /var/log/upstart/MacroMilter.log
 
 script:
 
