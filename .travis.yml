@@ -25,8 +25,8 @@ before_script:
   - sudo mkdir /etc/macromilter/
   - sudo mkdir -p /var/log/macromilter/
   - sudo cp ./macromilter/macromilter.py /usr/bin/
-  - sudo cp ./macromilter/travis/config.ini /etc/macromilter/
-  - sudo cp ./macromilter/travis/MacroMilter.conf /etc/init/
+  - sudo cp ./travis/config.ini /etc/macromilter/
+  - sudo cp ./travis/MacroMilter.conf /etc/init/
   - sudo init-checkconf /etc/init/MacroMilter.conf
   - sudo initctl log-priority debug
   - sudo initctl reload-configuration
@@ -38,6 +38,7 @@ before_script:
 
 script:
   - sudo tail -n 100 /var/log/macromilter/macromilter.log
-  - sudo tail -n 100 ./log
+  - sudo tail -n 100 ./macromilter.log
+  - sudo tail -n 100 /home/travis/macromilter_upstart.log
   - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
   - sudo tail -n 100 /var/log/mail.log
