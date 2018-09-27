@@ -34,11 +34,13 @@ before_script:
   - sudo chown postfix:postfix -R /var/log/macromilter
   - sudo chown postfix:postfix /usr/bin/macromilter.py
   - sudo chmod +x /usr/bin/macromilter.py
+  - sudo cut /etc/init/MacroMilter.conf
+  - sudo cut /etc/macromilter/config.ini
   - sudo service MacroMilter start
 
 script:
-  - sudo tail -n 100 /var/log/macromilter/macromilter.log
-  - sudo tail -n 100 ./macromilter.log
+  - sudo tail -n 100 /home/travis/macromilter.log
   - sudo tail -n 100 /home/travis/macromilter_upstart.log
   - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
   - sudo tail -n 100 /var/log/mail.log
+  - suod tail -n 400 /var/log/syslog
