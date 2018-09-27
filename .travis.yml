@@ -1,11 +1,7 @@
 language: phyton
-sudo: false
 
 python:
   - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
 
 before_install:
   - sudo apt-get update -qq
@@ -43,4 +39,4 @@ script:
   - sudo tail -n 100 /home/travis/macromilter_upstart.log
   - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
   - sudo tail -n 100 /var/log/mail.log
-  - suod tail -n 400 /var/log/syslog
+  - sudo tail -n 400 /var/log/syslog
