@@ -110,7 +110,17 @@ if os.path.isfile(CONFIG):
 	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
 	MESSAGE = config.get('Milter', 'MESSAGE')
 	MAX_ZIP = config.getint('Milter', 'MAX_ZIP')
-	REJECT_MESSAGE = config.getboolean('Milter', 'REJECT_MESSAGE')
+	try:
+		if config.getboolean('Milter', 'REJECT_MESSAGE'):
+			ACTION = 'reject'
+		else:
+			ACTION = 'replace'
+	except:
+		pass
+	try:
+		ACTION = config.get('Milter', 'ACTION').lower()
+	except:
+		ACTION = 'reject'
 	LOGFILE_DIR = config.get('Logging', 'LOGFILE_DIR')
 	LOGFILE_NAME = config.get('Logging', 'LOGFILE_NAME')
 	LOGLEVEL = config.getint('Logging', 'LOGLEVEL')
@@ -215,6 +225,8 @@ class MacroMilter(Milter.Base):
 			self.setreply('550', '5.7.1', MESSAGE)
 			
 			if self.sender_is_in_whitelist(msg):
+				if ACTION == 'tag':
+					self.addheader('X-MacroMilter-Status', 'Whitelisted')
 				return Milter.ACCEPT
 			else:
 				return self.checkforVBA(msg)
@@ -223,6 +235,8 @@ class MacroMilter(Milter.Base):
 			exc_type, exc_obj, exc_tb = sys.exc_info()
 			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 			log.error("Unexpected error - fall back to ACCEPT: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
+			if ACTION == 'tag':
+				self.addheader('X-MacroMilter-Status', 'Unchecked')
 			return Milter.ACCEPT
 
 	## ==== Data processing ====
@@ -232,7 +246,10 @@ class MacroMilter(Milter.Base):
 		hash_data = hashlib.md5(data).hexdigest()
 		# check if file is already parsed
 		if hash_data in hashtable:
-			log.warning("[%d] Attachment %s already parsed: REJECT" % (self.id, hash_data))
+			if ACTION == 'tag':
+				log.warning("[%d] Attachment %s already parsed: TAG" % (self.id, hash_data))
+			else:
+				log.warning("[%d] Attachment %s already parsed: REJECT" % (self.id, hash_data))
 			return True
 		else:
 			return False
@@ -250,6 +267,8 @@ class MacroMilter(Milter.Base):
 			Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
 		'''
 		# Accept all messages with no attachment
+		if ACTION == 'tag':
+			self.addheader('X-MacroMilter-Status', 'Clean')
 		result = Milter.ACCEPT
 		try:
 			for part in msg.walk():
@@ -268,7 +287,14 @@ class MacroMilter(Milter.Base):
 					attachment_fileobj = StringIO.StringIO(attachment)
 					# check if file was already parsed
 					if self.fileHasAlreadyBeenParsed(attachment):
-						return Milter.REJECT
+						if ACTION == 'tag':
+							self.chgheader('X-MacroMilter-Status', 1, 'Suspicious Macro')
+							return Milter.ACCEPT
+						elif ACTION == 'replace':
+							# Known issue: https://github.com/sbidy/MacroMilter/issues/37
+							return Milter.REJECT
+						else:
+							return Milter.REJECT
 					# check if this is a supported file type (if not, just skip it)
 					# TODO: this function should be provided by olevba
 					if olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
@@ -285,10 +311,15 @@ class MacroMilter(Milter.Base):
 									zipvba = self.getZipFiles(attachment, filename)
 									vba_code_all_modules += zipvba + '\n'
 								except ToManyZipException:
-									log.warning("[%d] Attachment %s is reached the max. nested zip count! ZipBomb?: REJECT" % (self.id, filename))
-									# rewrite the reject message 
-									self.setreply('550', '5.7.2', "The message contains a suspicious archive and was rejected!")
-									return Milter.REJECT
+									if ACTION == 'tag':
+										log.warning("[%d] Attachment %s is reached the max. nested zip count! ZipBomb?: TAG" % (self.id, filename))
+										self.chgheader('X-MacroMilter-Status', 1, 'Unknown')
+										return Milter.ACCEPT
+									else:
+										log.warning("[%d] Attachment %s is reached the max. nested zip count! ZipBomb?: REJECT" % (self.id, filename))
+										# rewrite the reject message 
+										self.setreply('550', '5.7.2', "The message contains a suspicious archive and was rejected!")
+										return MILTER.REJECT
 						# check the rest of the message
 						vba_parser = olevba.VBA_Parser(filename='message', data=attachment)
 						for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
@@ -300,16 +331,22 @@ class MacroMilter(Milter.Base):
 							# Add MD5 to the database
 							self.addHashtoDB(attachment)
 							# Replace the attachment or reject it
-							if REJECT_MESSAGE:
-								log.warning('[%d] The attachment %r contains a suspicious macro: REJECT' % (self.id, filename))
-								result = Milter.REJECT
-							else:
+							if ACTION == 'tag':
+								log.warning('[%d] The attachment %r contains a suspicious macro: TAG' % (self.id, filename))
+								self.chgheader('X-MacroMilter-Status', 1, 'Suspicious Macro')
+								return Milter.ACCEPT
+							elif ACTION == 'replace':
 								log.warning('[%d] The attachment %r contains a suspicious macro: replace it with a text file' % (self.id, filename))
 								part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 								part.set_type('text/plain')
 								part.replace_header('Content-Transfer-Encoding', '7bit')
+							else:
+								log.warning('[%d] The attachment %r contains a suspicious macro: REJECT' % (self.id, filename))
+								return Milter.REJECT
 						else:
 							log.debug('[%d] The attachment %r is clean.' % (self.id, filename))
+							if ACTION == 'tag':
+								self.chgheader('X-MacroMilter-Status', 1, 'Macro')
 
 		except Exception:
 			log.error('[%d] Error while processing the message' % self.id)
@@ -318,10 +355,12 @@ class MacroMilter(Milter.Base):
 			exep = ''.join('!! ' + line for line in lines)
 			log.debug("[%d] Exeption code: [%s]" % (self.id, exep))
 
-		if REJECT_MESSAGE is False:
-			body = str(msg)
-			self.message = io.BytesIO(body)
-			self.replacebody(body)
+		if ACTION != 'reject':
+			if ACTION == 'replace':
+				# Known issue: https://github.com/sbidy/MacroMilter/issues/38
+				body = str(msg)
+				self.message = io.BytesIO(body)
+				self.replacebody(body)
 			log.info('[%d] Message relayed' % self.id)
 		return result
 
