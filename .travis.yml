@@ -34,13 +34,12 @@ before_script:
   - sudo chmod +x /usr/bin/macromilter.py
   - sudo cat /etc/init/MacroMilter.conf
   - sudo cat /etc/macromilter/config.ini
-  - sudo service MacroMilter start
+  - #sudo service MacroMilter start
   - sleep 5
 
 script:
   - sudo tail -n 100 /home/travis/macromilter.log
-  - sudo service MacroMilter status
+  - #sudo service MacroMilter status
   - /bin/bash ./travis/tests.sh
   - sudo tail -n 100 /var/log/mail.log
-  #- sudo tail -n 100 /var/log/syslog
 
