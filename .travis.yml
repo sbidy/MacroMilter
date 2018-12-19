@@ -32,9 +32,11 @@ before_script:
   - sudo chmod +x /usr/bin/macromilter.py
   - sudo cat /etc/init/MacroMilter.conf
   - sudo cat /etc/macromilter/config.ini
-  - sudo service MacroMilter start
+  #- sudo service MacroMilter start
 
 script:
+  - python /usr/bin/macromilter.py >> log.txt 2>&1 &
+  - sudo tail -n 100 log.txt
   - sudo tail -n 100 /home/travis/macromilter.log
   - sudo tail -n 100 /home/travis/macromilter_upstart.log
   - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
