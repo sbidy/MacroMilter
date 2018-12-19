@@ -38,10 +38,8 @@ before_script:
   - sleep 5
 
 script:
-  #- sudo python ./macromilter/macromilter.py >> log.txt &
-  #- sudo tail -n 100 log.txt
   - sudo tail -n 100 /home/travis/macromilter.log
-  #- sudo tail -n 100 /home/travis/macromilter_upstart.log
+  - sudo service MacroMilter status
   - "! sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v"
   - sudo tail -n 100 /var/log/mail.log
   #- sudo tail -n 100 /var/log/syslog
