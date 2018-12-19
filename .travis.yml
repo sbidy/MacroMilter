@@ -17,6 +17,8 @@ before_script:
   - sudo postconf -e smtpd_milters=inet:127.0.0.1:10025
   - sudo postconf -e milter_default_action=accept
   - sudo service postfix start
+  - sudo iptables -I INPUT -s 127.0.0.1 -j ACCEPT
+  - sudo iptables -I OUTPUT -s 127.0.0.1 -j ACCEPT
   # install macromilter
   - sudo mkdir /etc/macromilter/
   - sudo mkdir -p /var/log/macromilter/
@@ -41,7 +43,5 @@ script:
   #- sudo tail -n 100 /home/travis/macromilter_upstart.log
   - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
   - sudo tail -n 100 /var/log/mail.log
-  - sudo tail -n 400 /var/log/syslog
-  - sudo netstat -anp tcp | grep LISTEN
-  - sudo iptables -I INPUT -s 127.0.0.1 -j ACCEPT
-  - sudo iptables -I OUTPUT -s 127.0.0.1 -j ACCEPT
+  - sudo tail -n 100 /var/log/syslog
+
