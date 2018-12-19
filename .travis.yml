@@ -38,10 +38,9 @@ before_script:
   - sleep 5
 
 script:
-  - sudo /bin/bash
   - sudo tail -n 100 /home/travis/macromilter.log
   - sudo service MacroMilter status
-  - ! sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
+  - /bin/bash ./travis/tests.sh
   - sudo tail -n 100 /var/log/mail.log
   #- sudo tail -n 100 /var/log/syslog
 
