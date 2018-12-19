@@ -34,15 +34,15 @@ before_script:
   - sudo chmod +x /usr/bin/macromilter.py
   - sudo cat /etc/init/MacroMilter.conf
   - sudo cat /etc/macromilter/config.ini
-  #- sudo service MacroMilter start
+  - sudo service MacroMilter start
+  - sleep 5
 
 script:
-  - sudo python ./macromilter/macromilter.py >> log.txt &
-  - sleep 3
-  - sudo tail -n 100 log.txt
-  #- sudo tail -n 100 /home/travis/macromilter.log
+  #- sudo python ./macromilter/macromilter.py >> log.txt &
+  #- sudo tail -n 100 log.txt
+  - sudo tail -n 100 /home/travis/macromilter.log
   #- sudo tail -n 100 /home/travis/macromilter_upstart.log
-  - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
+  - ! sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
   - sudo tail -n 100 /var/log/mail.log
-  - sudo tail -n 100 /var/log/syslog
+  #- sudo tail -n 100 /var/log/syslog
 
