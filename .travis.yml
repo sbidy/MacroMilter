@@ -23,7 +23,6 @@ before_script:
   - sudo mkdir /etc/macromilter/
   - sudo mkdir -p /var/log/macromilter/
   - sudo cp ./macromilter/macromilter.py /usr/bin/
-  - sudo cp ./travis/config.ini /etc/macromilter/
   - sudo cp ./travis/MacroMilter.conf /etc/init/
   - sudo init-checkconf /etc/init/MacroMilter.conf
   - sudo initctl log-priority debug
@@ -33,13 +32,38 @@ before_script:
   - sudo chown postfix:postfix /usr/bin/macromilter.py
   - sudo chmod +x /usr/bin/macromilter.py
   - sudo cat /etc/init/MacroMilter.conf
-  - sudo cat /etc/macromilter/config.ini
-  - sudo service MacroMilter start
-  - sleep 10
 # start tests
-script:
-  - sudo service MacroMilter status
-  - /bin/bash ./travis/tests.sh
-  - sudo tail -n 100 /var/log/mail.log
-  - sudo tail -n 100 /home/travis/macromilter.log
-  - cat /var/spool/mail/travis/*
+
+jobs:
+  include:
+  - stage: "Default config"
+    script:
+      - sudo cp ./travis/config_1.ini /etc/macromilter/config.ini
+      - sudo cat /etc/macromilter/config.ini
+      - sudo service MacroMilter start
+      - sleep 10
+      - sudo service MacroMilter status
+      - /bin/bash ./travis/tests.sh
+      - sudo tail -n 100 /var/log/mail.log
+      - sudo tail -n 100 /home/travis/macromilter.log
+  - stage: "HashWhitelist"
+    script:
+      - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
+      - sudo cat /etc/macromilter/config.ini
+      - sudo service MacroMilter restart
+      - sleep 10
+      - sudo service MacroMilter status
+      - /bin/bash ./travis/tests.sh
+      - sudo tail -n 100 /var/log/mail.log
+      - sudo tail -n 100 /home/travis/macromilter.log
+  - stage: "Reject false"
+    script:
+      - sudo cp ./travis/config_2.ini /etc/macromilter/config.ini
+      - sudo cat /etc/macromilter/config.ini
+      - sudo service MacroMilter restart
+      - sleep 10
+      - sudo service MacroMilter status
+      - /bin/bash ./travis/tests.sh
+      - sudo tail -n 100 /var/log/mail.log
+      - sudo tail -n 100 /home/travis/macromilter.log
+
