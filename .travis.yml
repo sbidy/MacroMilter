@@ -5,7 +5,7 @@ python:
 
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install -y -qq postfix libmilter-dev libmilter1.0.1 sendemail
+  - sudo apt-get install -y -qq postfix libmilter-dev libmilter1.0.1 sendemail mutt
   # install dependencies
   - sudo pip install oletools
   - sudo pip install pymilter
@@ -47,6 +47,17 @@ jobs:
       - /bin/bash ./travis/tests.sh
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
+  - stage: "Check zip"
+    script:
+      - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
+      - sudo cat /etc/macromilter/config.ini
+      - sudo service MacroMilter restart
+      - sleep 10
+      - sudo service MacroMilter status
+      - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/zipwithinfectedandnotinfectedword.zip -v
+      - sudo tail -n 100 /var/log/mail.log
+      - sudo tail -n 100 /home/travis/macromilter.log
+- sudo cat /var/spool/mail/travis/*
   - stage: "HashWhitelist"
     script:
       - sudo cp ./travis/config_2.ini /etc/macromilter/config.ini
@@ -57,7 +68,7 @@ jobs:
       - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
-      - sudo cat /var/spool/mail/travis/*
+      - mutt
   - stage: "Reject false"
     script:
       - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
@@ -68,5 +79,5 @@ jobs:
       - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
-      - sudo cat /var/spool/mail/travis/*
+      . mutt
 
