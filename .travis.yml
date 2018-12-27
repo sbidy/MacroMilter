@@ -35,10 +35,10 @@ before_script:
   - sudo cat /etc/init/MacroMilter.conf
   - sudo cat /etc/macromilter/config.ini
   - sudo service MacroMilter start
-  - sleep 5
+  - sleep 10
 # start tests
 script:
-  - sudo tail -n 100 /home/travis/macromilter.log
   - sudo service MacroMilter status
   - /bin/bash ./travis/tests.sh
   - sudo tail -n 100 /var/log/mail.log
+  - sudo tail -n 100 /home/travis/macromilter.log
