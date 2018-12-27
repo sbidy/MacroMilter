@@ -54,7 +54,7 @@ jobs:
       - sudo service MacroMilter restart
       - sleep 10
       - sudo service MacroMilter status
-      - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/zipwithinfectedandnotinfectedword.zip -v
+      - /bin/bash ./travis/tests_zip.sh
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
   - stage: "HashWhitelist"
