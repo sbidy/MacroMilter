@@ -99,7 +99,10 @@ if os.path.isfile(CONFIG):
 	config = SafeConfigParser()
 	config.read(CONFIG)
 	SOCKET = config.get('Milter', 'SOCKET')
-	UMASK = int(config.get('Milter', 'UMASK'), base=0)
+	try:
+		UMASK = int(config.get('Milter', 'UMASK'), base=0)
+	except:
+		UMASK = 0o0077
 	TIMEOUT = config.getint('Milter', 'TIMEOUT')
 	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
 	MESSAGE = config.get('Milter', 'MESSAGE')
@@ -286,7 +289,6 @@ class MacroMilter(Milter.Base):
 						# check if the attachment is a zip
 						if not olefile.isOleFile(attachment_fileobj):
 							extn = (os.path.splitext(filename)[1]).lower()
-
 							# skip non archives
 							if is_zipfile(attachment_fileobj) and not (".docx" in extn or ".xlsx" in extn  or ".pptx" in extn):
 								# extract all file in zip and add
@@ -359,7 +361,7 @@ class MacroMilter(Milter.Base):
 			zip_mem_data = StringIO.StringIO(zip_data)
 			name, ext = os.path.splitext(zip_name.filename)
 			# send to the VBA_Parser
-			# fall back with extensions - maybe removed in future releases
+			# fallback with extensions - maybe removed in future releases
 			if olefile.isOleFile(zip_mem_data) or ext in EXTENSIONS:
 				log.info("[%d] File in zip detected! Name: %s - check for VBA" % (self.id, zip_name.filename))
 				vba_parser = olevba.VBA_Parser(filename=zip_name.filename, data=zip_data)

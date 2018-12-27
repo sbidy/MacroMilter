@@ -6,6 +6,7 @@
 *.user
 *.userosscache
 *.sln.docstates
+*Doc1.doc
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -210,3 +211,4 @@ FakesAssemblies/
 GeneratedArtifacts/
 _Pvt_Extensions/
 ModelManifest.xml
+test_mails/Dok1.doc
