@@ -54,9 +54,10 @@ jobs:
       - sudo service MacroMilter restart
       - sleep 10
       - sudo service MacroMilter status
-      - /bin/bash ./travis/tests.sh
+      - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
+      - sudo cat /var/spool/mail/travis/*
   - stage: "Reject false"
     script:
       - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
