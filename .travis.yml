@@ -42,4 +42,4 @@ script:
   - /bin/bash ./travis/tests.sh
   - sudo tail -n 100 /var/log/mail.log
   - sudo tail -n 100 /home/travis/macromilter.log
-  - mutt
+  - cat /var/spool/mail/*
