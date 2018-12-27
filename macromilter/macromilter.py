@@ -253,7 +253,10 @@ class MacroMilter(Milter.Base):
 
 	def removeHashFromDB(self, data):
 		hash_data = hashlib.sha256(data).hexdigest()
-		hashtable.remove(hash_data)
+		hashtable.discard(hash_data)
+		# legacy MD5
+		hash_data = hashlib.md5(data).hexdigest()
+		hashtable.discard(hash_data)
 		with open(HASHTABLE_PATH, "a") as hashdb:
 			for line in hashdb:
 				if line != hash_data + "\n":
