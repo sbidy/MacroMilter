@@ -32,6 +32,7 @@ before_script:
   - sudo chown postfix:postfix /usr/bin/macromilter.py
   - sudo chmod +x /usr/bin/macromilter.py
   - sudo cat /etc/init/MacroMilter.conf
+  - sudo ls -la ./travis/
 # start tests
 
 jobs:
