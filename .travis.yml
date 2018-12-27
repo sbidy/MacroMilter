@@ -57,7 +57,6 @@ jobs:
       - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/zipwithinfectedandnotinfectedword.zip -v
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
-- sudo cat /var/spool/mail/travis/*
   - stage: "HashWhitelist"
     script:
       - sudo cp ./travis/config_2.ini /etc/macromilter/config.ini
