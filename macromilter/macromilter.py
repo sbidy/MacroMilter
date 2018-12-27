@@ -119,7 +119,7 @@ LOGFILE_PATH = os.path.join(LOGFILE_DIR, LOGFILE_NAME)
 HASHTABLE_PATH = os.path.join(LOGFILE_DIR, "hashtable.db")
 
 # fallback if a file can't detect by the file magic
-EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm", ".rtf", ".mht"
+EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm", ".rtf", ".mht", ".ppt"
 
 # Set up a specific logger with our desired output level
 log = logging.getLogger('MacroMilter')
@@ -131,7 +131,7 @@ hashtable = None
 WhiteList = None
 
 # Custom exception class for archive bomb exception
-class ToManyZipException(Exception):
+class TooManyZipException(Exception):
 	pass
 
 ## Customized milter class - partly copied from
@@ -235,10 +235,16 @@ class MacroMilter(Milter.Base):
 			log.warning("[%d] Attachment %s already parsed: REJECT" % (self.id, hash_data))
 			return True
 		else:
-			return False
+			# check if the attachment is a SHA
+			hash_data = hashlib.sha256(data).hexdigest()
+			if hash_data in hashtable:
+				log.warning("[%d] Attachment %s already parsed: REJECT" % (self.id, hash_data))
+				return True
+			else:
+				return False
 
 	def addHashtoDB(self, data):
-		hash_data = hashlib.md5(data).hexdigest()
+		hash_data = hashlib.sha256(data).hexdigest()
 		hashtable.add(hash_data)
 		with open(HASHTABLE_PATH, "a") as hashdb:
 			hashdb.write(hash_data + '\n')
@@ -246,7 +252,7 @@ class MacroMilter(Milter.Base):
 		log.debug("[%d] File added: %s" % (self.id, hash_data))
 
 	def removeHashFromDB(self, data):
-		hash_data = hashlib.md5(data).hexdigest()
+		hash_data = hashlib.sha256(data).hexdigest()
 		hashtable.remove(hash_data)
 		with open(HASHTABLE_PATH, "a") as hashdb:
 			for line in hashdb:
@@ -295,7 +301,7 @@ class MacroMilter(Milter.Base):
 								try:
 									zipvba = self.getZipFiles(attachment, filename)
 									vba_code_all_modules += zipvba + '\n'
-								except ToManyZipException:
+								except TooManyZipException:
 									log.warning("[%d] Attachment %s is reached the max. nested zip count! ZipBomb?: REJECT" % (self.id, filename))
 									# rewrite the reject message 
 									self.setreply('550', '5.7.2', "The message contains a suspicious archive and was rejected!")
@@ -318,7 +324,7 @@ class MacroMilter(Milter.Base):
 						m.scan()
 						# suspicious 
 						if m.autoexec and (m.execute or m.write):
-							# Add MD5 to the database
+							# Add sha256 to the database
 							self.addHashtoDB(attachment)
 							# Replace the attachment or reject it
 							if REJECT_MESSAGE:
@@ -387,12 +393,13 @@ class MacroMilter(Milter.Base):
 			log.debug("[%d] Whitelist compare: %s = %s" % (self.id, msg_from, msg_to))
 			# check if it is a list
 			for name in WhiteList:
-				if name in msg_from:
-					log.info("Whitelisted user %s - accept all attachments" % (msg_from))	
-					return True
-				if name in msg_to:
-					log.info("Whitelisted user %s - accept all attachments" % (msg_to))
-					return True
+				if name not in (None, ''):
+					if name in msg_from:
+						log.info("Whitelisted user %s - accept all attachments" % (msg_from))	
+						return True
+					if name in msg_to:
+						log.info("Whitelisted user %s - accept all attachments" % (msg_to))
+						return True
 		return False
 
 	def macro_is_in_whitelist(self, vbastring):
@@ -409,7 +416,7 @@ class MacroMilter(Milter.Base):
 		if Hash_Whitelist is not None:
 			for hash in Hash_Whitelist:
 				if hash in vba_hash:
-					log.info("Whitelisted macro code %s - accept attachment" % (vba_hash))
+					log.info("[%d] Whitelisted macro code %s - accept attachment" % (self.id, vba_hash))
 					return True
 		return False
 
