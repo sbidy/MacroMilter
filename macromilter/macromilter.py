@@ -254,13 +254,18 @@ class MacroMilter(Milter.Base):
 	def removeHashFromDB(self, data):
 		hash_data = hashlib.sha256(data).hexdigest()
 		hashtable.discard(hash_data)
-		# legacy MD5
-		hash_data = hashlib.md5(data).hexdigest()
-		hashtable.discard(hash_data)
 		with open(HASHTABLE_PATH, "r+") as hashdb:
 			for line in hashdb:
 				if line != (hash_data + "\n"):
 					hashdb.write(line)
+		# legacy MD5
+		hash_data = hashlib.md5(data).hexdigest()
+		hashtable.discard(hash_data)		
+		with open(HASHTABLE_PATH, "r+") as hashdb:
+			for line in hashdb:
+				if line != (hash_data + "\n"):
+					hashdb.write(line)
+
 
 	def checkforVBA(self, msg):
 		'''
