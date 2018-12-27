@@ -29,6 +29,7 @@
 ## 3.4 - 27.10.2017 sbidy - Update and fix some bugs #19, #18 and #17 - create release 
 ## 3.5.1 - 03.01.2018 sbidy - Fix for #31 #27 #29, some updates for the logging and umask
 ## 3.5.2 - 04.01.2018 sbidy - update the tempfile handling for more security and some other fixes, re-introduce the UMASK
+## 3.5.3 - 06.02.2018 sbidy - implementing the macro whitelisting, update the config parsing to json
 
 # The MIT License (MIT)
 
@@ -68,29 +69,25 @@ import traceback
 import tempfile
 import shutil
 import olefile
+import json
 
 from sets import Set
 from oletools import olevba, mraptor
 from Milter.utils import parse_addr
 from socket import AF_INET6
 from ConfigParser import SafeConfigParser
+from oletools.olevba import VBA_Parser
+
 
 # use backport if needed
 if sys.version_info[0] <= 2:
-	# Python 2.x
-	if sys.version_info[1] <= 6:
-		# Python 2.6
-		# use is_zipfile backported from Python 2.7:
-		from oletools.thirdparty.zipfile27 import ZipFile, is_zipfile
-	else:
-		# Python 2.7
-		from zipfile import ZipFile, is_zipfile
+	from zipfile import ZipFile, is_zipfile
 else:
 	# Python 3.x+
 	from zipfile import ZipFile, is_zipfile
 
 ## Config see ./config.ini
-__version__ = '3.5.2'  # version
+__version__ = '3.5.4'  # version
 
 # get the config from FHS conform dir (bug #13)
 CONFIG = os.path.join(os.path.dirname("/etc/macromilter/"),"config.ini")
@@ -129,7 +126,7 @@ log = logging.getLogger('MacroMilter')
 # disable logging by default - enable it in main app:
 log.setLevel(logging.CRITICAL+1)
 
-hash_to_write = None
+Hash_Whitelist = None
 hashtable = None
 WhiteList = None
 
@@ -169,6 +166,7 @@ class MacroMilter(Milter.Base):
 
 	@Milter.noreply
 	def envfrom(self, mailfrom, *str):
+		self.recipients = [] # list of recipients
 		self.messageToParse = StringIO.StringIO()
 		self.canon_from = '@'.join(parse_addr(mailfrom))
 		self.messageToParse.write('From %s %s\n' % (self.canon_from, time.ctime()))
@@ -176,6 +174,8 @@ class MacroMilter(Milter.Base):
 
 	@Milter.noreply
 	def envrcpt(self, to, *str):
+		# remove the < and >
+		self.recipients.append(to[1:-1])
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -214,7 +214,7 @@ class MacroMilter(Milter.Base):
 			# https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
 			self.setreply('550', '5.7.1', MESSAGE)
 			
-			if self.sender_is_in_whitelist(msg):
+			if self.sender_is_in_whitelist():
 				return Milter.ACCEPT
 			else:
 				return self.checkforVBA(msg)
@@ -245,6 +245,14 @@ class MacroMilter(Milter.Base):
 
 		log.debug("[%d] File added: %s" % (self.id, hash_data))
 
+	def removeHashFromDB(self, data):
+		hash_data = hashlib.md5(data).hexdigest()
+		hashtable.remove(hash_data)
+		with open(HASHTABLE_PATH, "a") as hashdb:
+			for line in hashdb:
+				if line != hash_data + "\n":
+					hashdb.write(line)
+
 	def checkforVBA(self, msg):
 		'''
 			Checks if it contains a vba macro and checks if user is whitelisted or file already parsed
@@ -261,14 +269,17 @@ class MacroMilter(Milter.Base):
 				if not content_type.startswith('multipart'):
 					filename = part.get_filename(None)
 					attachment = part.get_payload(decode=True)
+
 					if attachment is None:
 						return Milter.CONTINUE
 					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
 					attachment_lowercase = attachment.lower()
 					attachment_fileobj = StringIO.StringIO(attachment)
+
 					# check if file was already parsed
 					if self.fileHasAlreadyBeenParsed(attachment):
 						return Milter.REJECT
+
 					# check if this is a supported file type (if not, just skip it)
 					# TODO: this function should be provided by olevba
 					if olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
@@ -289,14 +300,24 @@ class MacroMilter(Milter.Base):
 									# rewrite the reject message 
 									self.setreply('550', '5.7.2', "The message contains a suspicious archive and was rejected!")
 									return Milter.REJECT
+
 						# check the rest of the message
 						vba_parser = olevba.VBA_Parser(filename='message', data=attachment)
 						for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
 							vba_code_all_modules += vba_code + '\n'
+
+						# check the macro code whitelist
+						if vba_code_all_modules is not None:
+							if self.macro_is_in_whitelist(vba_code_all_modules):
+								# macro code is in whitelist
+								self.removeHashFromDB(attachment)
+								return Milter.ACCEPT
+
 						# run the mraptor
 						m = mraptor.MacroRaptor(vba_code_all_modules)
 						m.scan()
-						if m.suspicious:
+						# suspicious 
+						if m.autoexec and (m.execute or m.write):
 							# Add MD5 to the database
 							self.addHashtoDB(attachment)
 							# Replace the attachment or reject it
@@ -316,7 +337,7 @@ class MacroMilter(Milter.Base):
 			exc_type, exc_value, exc_traceback = sys.exc_info()
 			lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
 			exep = ''.join('!! ' + line for line in lines)
-			log.debug("[%d] Exeption code: [%s]" % (self.id, exep))
+			log.debug("[%d] Exception code: [%s]" % (self.id, exep))
 
 		if REJECT_MESSAGE is False:
 			body = str(msg)
@@ -327,7 +348,7 @@ class MacroMilter(Milter.Base):
 
 	def getZipFiles(self, attachment, filename):
 		'''
-			Checks a zip for parsable files and extracts all macros
+			Checks a zip for parseable files and extracts all macros
 		'''
 		log.debug("[%d] Found attachment with archive extension - file name: %s" % (self.id, filename))
 		vba_code_all_modules = ''
@@ -348,20 +369,47 @@ class MacroMilter(Milter.Base):
 					vba_code_all_modules += vba_code + '\n'
 		return vba_code_all_modules
 
-	def sender_is_in_whitelist(self, msg):
+	def sender_is_in_whitelist(self):
 		'''
-			Lookup if the sender is at the whitelist - @domains.com must be supported
+		Lookup if the sender is at the whitelist
 		'''
 		global WhiteList
-		sender = ''
-		msg_from = msg['From']
-		if msg_from is not None:
-			sender = str(re.findall('<([^"]*)>', msg_from ))
+		msg_from = self.canon_from
+		msg_to = self.recipients
+
+		# return if not RFC char detected
+		if "\'" in msg_from:
+			return False
+		if "\'" in msg_to:
+			return False
 
 		if WhiteList is not None:
+			log.debug("[%d] Whitelist compare: %s = %s" % (self.id, msg_from, msg_to))
+			# check if it is a list
 			for name in WhiteList:
-				if re.search(name, sender) and not name.startswith("#"):
-					log.info("Whitelisted user %s - accept all attachments" % (msg_from))
+				if name in msg_from:
+					log.info("Whitelisted user %s - accept all attachments" % (msg_from))	
+					return True
+				if name in msg_to:
+					log.info("Whitelisted user %s - accept all attachments" % (msg_to))
+					return True
+		return False
+
+	def macro_is_in_whitelist(self, vbastring):
+		'''
+		Lookup for macro hash in whitelist
+		'''
+		global Hash_Whitelist
+		# create hex over macro code
+		vba_hex = vbastring.encode("hex")
+		# generate sha256 hash
+		vba_hash = hashlib.sha256(vba_hex).hexdigest()
+		log.info("[%d] The macro hash is: %s" % (self.id, vba_hash))
+
+		if Hash_Whitelist is not None:
+			for hash in Hash_Whitelist:
+				if hash in vba_hash:
+					log.info("Whitelisted macro code %s - accept attachment" % (vba_hash))
 					return True
 		return False
 
@@ -432,14 +480,15 @@ def WhiteListLoad():
 	'''
 		Function to load the data from the WhiteList file and load into memory
 	'''
-	global WhiteList
-	WhiteList = config.get("Whitelist", "Recipients")
+	global WhiteList, Hash_Whitelist
+	WhiteList = json.loads(config.get("Whitelist", "Recipients"))
+	Hash_Whitelist = json.loads(config.get("Whitelist", "Macrohash"))
 
 def HashTableLoad():
 	'''
 		Load the hash info from file to memory
 	'''
-	# Load Hashs from file
+	# Load hashes from file
 	global hashtable
 	oldumask = os.umask(0o0026)
 	hashtable = set(line.strip() for line in open(HASHTABLE_PATH, 'a+'))
@@ -457,7 +506,7 @@ def main():
 	WhiteListLoad()
 	HashTableLoad()
 	# Add the log message handler to the logger
-	# rotation handeld by logrotatd
+	# rotation handled by logrotatd
 	oldumask = os.umask(0o0026)
 	handler = logging.handlers.WatchedFileHandler(LOGFILE_PATH, encoding='utf8')
 	# create formatter and add it to the handlers
