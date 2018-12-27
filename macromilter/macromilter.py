@@ -257,9 +257,9 @@ class MacroMilter(Milter.Base):
 		# legacy MD5
 		hash_data = hashlib.md5(data).hexdigest()
 		hashtable.discard(hash_data)
-		with open(HASHTABLE_PATH, "a") as hashdb:
+		with open(HASHTABLE_PATH, "r+") as hashdb:
 			for line in hashdb:
-				if line != hash_data + "\n":
+				if line != (hash_data + "\n"):
 					hashdb.write(line)
 
 	def checkforVBA(self, msg):
