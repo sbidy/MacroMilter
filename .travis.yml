@@ -67,7 +67,6 @@ jobs:
       - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
-      - mutt
   - stage: "Reject false"
     script:
       - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
@@ -78,5 +77,4 @@ jobs:
       - sendemail -f travis@localhost -t travis@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
-      - mutt
 
