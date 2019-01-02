@@ -41,7 +41,7 @@ before_script:
 
 jobs:
   include:
-  - stage: "Default config"
+  - stage: Testing
     script:
       - sudo cp ./travis/config_1.ini /etc/macromilter/config.ini
       - sudo cat /etc/macromilter/config.ini
@@ -51,7 +51,7 @@ jobs:
       - /bin/bash ./travis/tests.sh
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
-  - stage: "Check zip"
+  - stage: Testing
     script:
       - sudo cp ./travis/config_1.ini /etc/macromilter/config.ini
       - sudo cat /etc/macromilter/config.ini
@@ -61,7 +61,7 @@ jobs:
       - /bin/bash ./travis/tests_zip.sh
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
-  - stage: "HashWhitelist"
+  - stage: Testing
     script:
       - sudo cp ./travis/config_2.ini /etc/macromilter/config.ini
       - sudo cat /etc/macromilter/config.ini
@@ -72,7 +72,7 @@ jobs:
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
       - sudo cat ./travis/mail.txt
-  - stage: "Reject false"
+  - stage: Testing
     script:
       - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
       - sudo cat /etc/macromilter/config.ini
@@ -83,7 +83,7 @@ jobs:
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
       - sudo cat ./travis/mail.txt
-  - stage: "Reject false without attachment"
+  - stage: Testing
     script:
       - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
       - sudo cat /etc/macromilter/config.ini
