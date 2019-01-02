@@ -273,6 +273,8 @@ class MacroMilter(Milter.Base):
 		'''
 		# Accept all messages with no attachment
 		result = Milter.ACCEPT
+		# check if the body must be replaced
+		newbody = False
 		try:
 			for part in msg.walk():
 				# for name, value in part.items():
@@ -293,6 +295,13 @@ class MacroMilter(Milter.Base):
 					# check if file was already parsed
 					if self.fileHasAlreadyBeenParsed(attachment):
 						if REJECT_MESSAGE is False:
+							part.set_payload('This attachment has been removed because it contains a suspicious macro.')
+							part.set_type('text/plain')
+							part.replace_header('Content-Transfer-Encoding', '7bit')
+							body = str(msg)
+							self.message = io.BytesIO(body)
+							self.replacebody(body)
+							log.info('[%d] File already paresed - attachement replaced' % self.id)
 							return Milter.ACCEPT
 						else:
 							return Milter.REJECT
@@ -346,9 +355,13 @@ class MacroMilter(Milter.Base):
 								part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 								part.set_type('text/plain')
 								part.replace_header('Content-Transfer-Encoding', '7bit')
+								body = str(msg)
+								self.message = io.BytesIO(body)
+								self.replacebody(body)
+								log.info('[%d] Message relayed' % self.id)
+								result = Milter.ACCEPT
 						else:
 							log.debug('[%d] The attachment %r is clean.' % (self.id, filename))
-							result = None
 
 		except Exception:
 			log.error('[%d] Error while processing the message' % self.id)
@@ -356,13 +369,7 @@ class MacroMilter(Milter.Base):
 			lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
 			exep = ''.join('!! ' + line for line in lines)
 			log.debug("[%d] Exception code: [%s]" % (self.id, exep))
-
-		if REJECT_MESSAGE is False and result is None:
-			body = str(msg)
-			self.message = io.BytesIO(body)
-			self.replacebody(body)
-			log.info('[%d] Message relayed' % self.id)
-			result = Milter.ACCEPT
+			
 		return result
 
 	def getZipFiles(self, attachment, filename):
