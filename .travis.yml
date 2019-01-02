@@ -33,7 +33,8 @@ before_script:
   - sudo chown postfix:postfix /usr/bin/macromilter.py
   - sudo chmod +x /usr/bin/macromilter.py
   - sudo cat /etc/init/MacroMilter.conf
-  - sudo ls /home/travis/travis/
+  - sudo pwd
+  - sudo ls ./travis
   - sudo /bin/bash ./travis/mailalias.sh
 # start tests
 
