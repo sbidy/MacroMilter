@@ -25,10 +25,22 @@ wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/conf
 # setup upstart config
 cd /etc/init/
 wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/MacroMilter.conf
+# if systemd use this
+cd /etc/systemd/system/
+wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/macromilter.service
+# logrotate file
 cd /etc/logrotate.d/
 wget https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/macromilter.logrotate
-initctl reload-configuration
 
+# Ubuntu 12.04 ami-b08b6cd8: using upstart
+# Ubuntu 14.04 ami-a427efcc: using upstart
+# Ubuntu 14.10 and younger: using systemd
+
+# upstart use:
+initctl reload-configuration
+# systemd use:
+systemctl enable macromilter.service
+systemctl is-enabled macromilter.service
 
 # set chown for postfix
 chown postfix:postfix -R /etc/macromilter
