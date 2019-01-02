@@ -298,17 +298,13 @@ class MacroMilter(Milter.Base):
 							part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 							part.set_type('text/plain')
 							part.replace_header('Content-Transfer-Encoding', '7bit')
-							body = str(msg)
-							self.message = io.BytesIO(body)
-							self.replacebody(body)
-							log.info('[%d] File already paresed - attachement replaced' % self.id)
-							return Milter.ACCEPT
+							newbody = True
 						else:
 							return Milter.REJECT
 
 					# check if this is a supported file type (if not, just skip it)
 					# TODO: this function should be provided by olevba
-					if olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
+					if not newbody or olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
 						or ('mime' in attachment_lowercase and 'version' in attachment_lowercase \
 						and 'multipart' in attachment_lowercase):
 						vba_code_all_modules = ''
@@ -355,11 +351,7 @@ class MacroMilter(Milter.Base):
 								part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 								part.set_type('text/plain')
 								part.replace_header('Content-Transfer-Encoding', '7bit')
-								body = str(msg)
-								self.message = io.BytesIO(body)
-								self.replacebody(body)
-								log.info('[%d] Message relayed' % self.id)
-								result = Milter.ACCEPT
+								newbody = True
 						else:
 							log.debug('[%d] The attachment %r is clean.' % (self.id, filename))
 
@@ -369,7 +361,13 @@ class MacroMilter(Milter.Base):
 			lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
 			exep = ''.join('!! ' + line for line in lines)
 			log.debug("[%d] Exception code: [%s]" % (self.id, exep))
-			
+		
+		if newbody:
+			body = str(msg)
+			self.message = io.BytesIO(body)
+			self.replacebody(body)
+			log.info('[%d] Message relayed' % self.id)
+			result = Milter.ACCEPT
 		return result
 
 	def getZipFiles(self, attachment, filename):
