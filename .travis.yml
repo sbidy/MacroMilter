@@ -33,7 +33,7 @@ before_script:
   - sudo chown postfix:postfix /usr/bin/macromilter.py
   - sudo chmod +x /usr/bin/macromilter.py
   - sudo cat /etc/init/MacroMilter.conf
-  - sudo echo 'test: "|/home/travis/travis/readmail.py"' >> /etc/aliases
+  - sudo echo "test: '|/home/travis/travis/readmail.py'" >> /etc/aliases
   - sudo newaliases
 # start tests
 
