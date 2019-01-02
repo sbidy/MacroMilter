@@ -17,7 +17,7 @@ before_script:
   - sudo service postfix stop
   - sudo postconf -e smtpd_milters=inet:127.0.0.1:10025
   - sudo postconf -e milter_default_action=accept
-  - sudo postconf -e default_privs=postfix
+  - sudo postconf -e default_privs=travis
   - sudo postconf
   - sudo service postfix start
   - sudo iptables -I INPUT -s 127.0.0.1 -j ACCEPT
