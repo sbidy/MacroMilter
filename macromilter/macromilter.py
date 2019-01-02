@@ -292,7 +292,10 @@ class MacroMilter(Milter.Base):
 
 					# check if file was already parsed
 					if self.fileHasAlreadyBeenParsed(attachment):
-						return Milter.REJECT
+						if REJECT_MESSAGE is False:
+							return Milter.ACCEPT
+						else:
+							return Milter.REJECT
 
 					# check if this is a supported file type (if not, just skip it)
 					# TODO: this function should be provided by olevba
@@ -343,9 +346,9 @@ class MacroMilter(Milter.Base):
 								part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 								part.set_type('text/plain')
 								part.replace_header('Content-Transfer-Encoding', '7bit')
-								result = None
 						else:
 							log.debug('[%d] The attachment %r is clean.' % (self.id, filename))
+							result = None
 
 		except Exception:
 			log.error('[%d] Error while processing the message' % self.id)
