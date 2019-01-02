@@ -1,3 +1,6 @@
+#!/usr/bin/env python
 import email
-msg = email.message_from_file(sys.stdin
+import sys
+
+msg = email.message_from_file(sys.stdin)
 print(msg)
