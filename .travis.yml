@@ -83,4 +83,15 @@ jobs:
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
       - sudo cat ./travis/mail.txt
+  - stage: "Reject false without attachment"
+    script:
+      - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
+      - sudo cat /etc/macromilter/config.ini
+      - sudo service MacroMilter restart
+      - sleep 10
+      - sudo service MacroMilter status
+      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -v
+      - sudo tail -n 100 /var/log/mail.log
+      - sudo tail -n 100 /home/travis/macromilter.log
+      - sudo cat ./travis/mail.txt
 
