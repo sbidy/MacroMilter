@@ -343,6 +343,7 @@ class MacroMilter(Milter.Base):
 								part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 								part.set_type('text/plain')
 								part.replace_header('Content-Transfer-Encoding', '7bit')
+								result = None
 						else:
 							log.debug('[%d] The attachment %r is clean.' % (self.id, filename))
 
@@ -353,11 +354,12 @@ class MacroMilter(Milter.Base):
 			exep = ''.join('!! ' + line for line in lines)
 			log.debug("[%d] Exception code: [%s]" % (self.id, exep))
 
-		if REJECT_MESSAGE is False:
+		if REJECT_MESSAGE is False and result is None:
 			body = str(msg)
 			self.message = io.BytesIO(body)
 			self.replacebody(body)
 			log.info('[%d] Message relayed' % self.id)
+			result = Milter.ACCEPT
 		return result
 
 	def getZipFiles(self, attachment, filename):
