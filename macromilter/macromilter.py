@@ -331,10 +331,13 @@ class MacroMilter(Milter.Base):
 									return Milter.REJECT
 
 						# check the rest of the message
-						vba_parser = olevba.VBA_Parser(filename='message', data=attachment)
-						for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
-							vba_code_all_modules += vba_code + '\n'
-
+						try:
+							vba_parser = olevba.VBA_Parser(filename='message', data=attachment)
+							for (subfilename, stream_path, vba_filename, vba_code) in vba_parser.extract_all_macros():
+								vba_code_all_modules += vba_code + '\n'
+						except FileOpenError:
+							log.error('[%d] Error while processing the message. Possible encrypted zip detected.' % self.id)
+						
 						# check the macro code whitelist
 						if vba_code_all_modules is not None:
 							if self.macro_is_in_whitelist(vba_code_all_modules):
