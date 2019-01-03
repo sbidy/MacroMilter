@@ -215,6 +215,7 @@ class MacroMilter(Milter.Base):
 			self.setreply('550', '5.7.1', MESSAGE)
 			
 			if self.sender_is_in_whitelist():
+				self.addheader('X-MacroMilter-Status', 'Whitelisted')
 				return Milter.ACCEPT
 			else:
 				return self.checkforVBA(msg)
@@ -223,6 +224,7 @@ class MacroMilter(Milter.Base):
 			exc_type, exc_obj, exc_tb = sys.exc_info()
 			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 			log.error("Unexpected error - fall back to ACCEPT: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
+			self.addheader('X-MacroMilter-Status', 'Unchecked')
 			return Milter.ACCEPT
 
 	## ==== Data processing ====
@@ -286,7 +288,7 @@ class MacroMilter(Milter.Base):
 					filename = part.get_filename(None)
 					attachment = part.get_payload(decode=True)
 
-					if attachment is None:
+					if attachment is None and filename is None:
 						return Milter.CONTINUE
 					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
 					attachment_lowercase = attachment.lower()
@@ -296,9 +298,14 @@ class MacroMilter(Milter.Base):
 					if self.fileHasAlreadyBeenParsed(attachment):
 						if REJECT_MESSAGE is False:
 							part.set_payload('This attachment has been removed because it contains a suspicious macro.')
+							self.chgheader('X-MacroMilter-Status', 1, 'Suspicious Macro')
 							part.set_type('text/plain')
 							part.replace_header('Content-Transfer-Encoding', '7bit')
-							newbody = True
+							body = str(msg)
+							self.message = io.BytesIO(body)
+							self.replacebody(body)
+							log.info('[%d] Message relayed' % self.id)
+							return Milter.ACCEPT
 						else:
 							return Milter.REJECT
 
@@ -345,9 +352,11 @@ class MacroMilter(Milter.Base):
 							# Replace the attachment or reject it
 							if REJECT_MESSAGE:
 								log.warning('[%d] The attachment %r contains a suspicious macro: REJECT' % (self.id, filename))
+								self.chgheader('X-MacroMilter-Status', 1, 'Suspicious Macro')
 								result = Milter.REJECT
 							else:
 								log.warning('[%d] The attachment %r contains a suspicious macro: replace it with a text file' % (self.id, filename))
+								self.chgheader('X-MacroMilter-Status', 1, 'Suspicious Macro')
 								part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 								part.set_type('text/plain')
 								part.replace_header('Content-Transfer-Encoding', '7bit')
