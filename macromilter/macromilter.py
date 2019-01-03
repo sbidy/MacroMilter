@@ -340,6 +340,7 @@ class MacroMilter(Milter.Base):
 							if self.macro_is_in_whitelist(vba_code_all_modules):
 								# macro code is in whitelist
 								self.removeHashFromDB(attachment)
+								self.addheader('X-MacroMilter-Status', 'Whitelisted')
 								return Milter.ACCEPT
 
 						# run the mraptor
@@ -385,14 +386,14 @@ class MacroMilter(Milter.Base):
 		'''
 		body = str(msg)
 		for a,b in msg.items():
-			body = body.replace(a+": "+b+"\n","")
+			body = body.replace(a+": "+b+"\r\n","")
 		# remove the header from the body
 		tmp = ""
 		for lines in body.splitlines():
 			if lines.startswith("------MIME"):
 				break
 			else:
-				tmp += lines+"\n"
+				tmp += lines+"\r\n"
 		return body.replace(tmp,"")
 
 	def getZipFiles(self, attachment, filename):
