@@ -383,14 +383,16 @@ class MacroMilter(Milter.Base):
 	def removeHader(self, msg):
 		'''
 			Removes the hader form the MIME mail to prevent a duplication. Retruns the raw body as string.
+			The preamble for non-MIME clients is removed. Non-MIME clients can't read the attachement.
 		'''
+		# remove header from the body
+		# ToDo: Get the boundary to determine the line beginning better
 		body = str(msg)
-		for a,b in msg.items():
-			body = body.replace(a+": "+b+"\n","")
-		# remove the header from the body
-		index  = 0
+		index = 0
 		for lines in body.splitlines():
-			if lines.startswith("------MIME"):
+			# regarding the https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html
+			# in a multipart the first boundary beings with '--'
+			if lines.startswith("--"):
 				break
 			else:
 				index = index + 1
