@@ -30,6 +30,7 @@
 ## 3.5.1 - 03.01.2018 sbidy - Fix for #31 #27 #29, some updates for the logging and umask
 ## 3.5.2 - 04.01.2018 sbidy - update the tempfile handling for more security and some other fixes, re-introduce the UMASK
 ## 3.5.3 - 06.02.2018 sbidy - implementing the macro whitelisting, update the config parsing to json
+## 3.6 - 03.01.2018 sbidy - fixing mutlible issues and bugs (#41, #38, #37, #35, #31, #30). Add MIME header for the diffent stages.
 
 # The MIT License (MIT)
 
@@ -87,7 +88,7 @@ else:
 	from zipfile import ZipFile, is_zipfile
 
 ## Config see ./config.ini
-__version__ = '3.5.4'  # version
+__version__ = '3.6'  # version
 
 # get the config from FHS conform dir (bug #13)
 CONFIG = os.path.join(os.path.dirname("/etc/macromilter/"),"config.ini")
@@ -385,7 +386,7 @@ class MacroMilter(Milter.Base):
 
 	def removeHader(self, msg):
 		'''
-			Removes the hader form the MIME mail to prevent a duplication. Retruns the raw body as string.
+			Removes the header form the MIME mail to prevent a duplication. Retruns the raw body as string.
 			The preamble for non-MIME clients is removed. Non-MIME clients can't read the attachement.
 		'''
 		# remove header from the body
