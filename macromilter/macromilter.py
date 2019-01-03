@@ -301,9 +301,9 @@ class MacroMilter(Milter.Base):
 							self.addheader('X-MacroMilter-Status', 'Suspicious macro')
 							part.set_type('text/plain')
 							part.replace_header('Content-Transfer-Encoding', '7bit')
-							body = str(self.getBody(msg))
+							body = str(msg)
 							self.message = io.BytesIO(body)
-							self.replacebody(body)
+							#self.replacebody(body)
 							log.info('[%d] Message relayed' % self.id)
 							return Milter.ACCEPT
 						else:
@@ -372,22 +372,12 @@ class MacroMilter(Milter.Base):
 			log.debug("[%d] Exception code: [%s]" % (self.id, exep))
 		
 		if newbody:
-			body = str(self.getBody(msg))
+			body = str(msg)
 			self.message = io.BytesIO(body)
-			self.replacebody(body)
+			#self.replacebody(body)
 			log.info('[%d] Message relayed' % self.id)
 			result = Milter.ACCEPT
 		return result
-
-	def getBody(self, msg):
-		message = ""
-		if msg.is_multipart():
-			for payload in msg.get_payload():
-				# if payload.is_multipart(): ...
-				message += payload.get_payload()
-			return message
-		else:
-			return msg.get_payload()
 
 	def getZipFiles(self, attachment, filename):
 		'''
