@@ -1,20 +1,17 @@
-# Version 3.5.2 is available
+# Version 3.6 is as pre-release available
 [![Build Status](https://travis-ci.com/sbidy/MacroMilter.svg?branch=master)](https://travis-ci.com/sbidy/MacroMilter)
 
 Changelog:
- - Fixed some bugs (zip handling, access rights ...)
- - Preparation for python 3 compatibility
- - some minor changes and improvements
- - standardize the log messages
+ - fixing multiple issues and bugs (#41 , #38, #37, #35, #31, #30)
+ - Add MIME header for the different stages.
+ - The hash db is updated to SHA256 instead of MD5. Old MD5 hashes still supported.
 
 ## Contributing
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
-
 To contribute, please fork this repository and make pull requests to the master or testing branch.
 
 ## Branches
 #### master = production grade and tested implementation
-
 #### testing = only for testing and non-prod. environments
 
 ## Abstract
@@ -50,7 +47,8 @@ This milter use the functionality from the oletools (https://bitbucket.org/decal
 ## Installation
 
 ### Debian and Ubuntu
-Download the "ubuntu_install.sh" script from the repo - [install_ubuntu.sh](https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/install_ubuntu.sh). It creates and downloads all required files and packages.
+Download the "install_ubuntu.sh" script from the repo - [install_ubuntu.sh](https://raw.githubusercontent.com/sbidy/MacroMilter/master/macromilter/install_ubuntu.sh). It creates and downloads all required files and packages.
+*Please use for Ubunut 14.10 and higher the "old" systemd script part! For 14.0x and older please use the upstart part!*
 
 ### Fedora
 ```bash
@@ -75,11 +73,12 @@ systemctl reload postfix.service
 ## User whitelist
 To allow a user or whole domain to send false-positive VAB-Macro-Mails, enter only the user mail address (xyz@domain.com) or the  domain (@domain.com). See config.ini for more details.
 
+## Macro whitelist
+To allow only a special and wellknown macro code, add the SHA256 hash to the Macrohash part in the configuration file.
+You will find the raw macro hash in the macromilter log file `INFO [ID] The macro hash is: <the sha256 value>`. Please use only this one!
+
 ## TBD
-* Add some advanced logic to the whitelist
-* Code need some love :-)
 * Config-File error handling
-* Testing / performance
 * HTML-Dashboard
 * Setup-package for pip
 
