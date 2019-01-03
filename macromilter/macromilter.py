@@ -298,10 +298,10 @@ class MacroMilter(Milter.Base):
 					if self.fileHasAlreadyBeenParsed(attachment):
 						if REJECT_MESSAGE is False:
 							part.set_payload('This attachment has been removed because it contains a suspicious macro.')
-							self.chgheader('X-MacroMilter-Status', 1, 'Suspicious Macro')
+							self.addheader('X-MacroMilter-Status', 'Suspicious macro')
 							part.set_type('text/plain')
 							part.replace_header('Content-Transfer-Encoding', '7bit')
-							body = str(msg)
+							body = str(self.getBody(msg))
 							self.message = io.BytesIO(body)
 							self.replacebody(body)
 							log.info('[%d] Message relayed' % self.id)
@@ -352,11 +352,11 @@ class MacroMilter(Milter.Base):
 							# Replace the attachment or reject it
 							if REJECT_MESSAGE:
 								log.warning('[%d] The attachment %r contains a suspicious macro: REJECT' % (self.id, filename))
-								self.chgheader('X-MacroMilter-Status', 1, 'Suspicious Macro')
+								self.addheader('X-MacroMilter-Status', 'Suspicious macro')
 								result = Milter.REJECT
 							else:
 								log.warning('[%d] The attachment %r contains a suspicious macro: replace it with a text file' % (self.id, filename))
-								self.chgheader('X-MacroMilter-Status', 1, 'Suspicious Macro')
+								self.addheader('X-MacroMilter-Status', 'Suspicious macro')
 								part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 								part.set_type('text/plain')
 								part.replace_header('Content-Transfer-Encoding', '7bit')
@@ -372,12 +372,21 @@ class MacroMilter(Milter.Base):
 			log.debug("[%d] Exception code: [%s]" % (self.id, exep))
 		
 		if newbody:
-			body = str(msg)
+			body = str(self.getBody(msg))
 			self.message = io.BytesIO(body)
 			self.replacebody(body)
 			log.info('[%d] Message relayed' % self.id)
 			result = Milter.ACCEPT
 		return result
+
+	def getBody(self, msg):
+		message = ""
+		if msg.is_multipart():
+			for payload in msg.get_payload():
+				# if payload.is_multipart(): ...
+				message += payload.get_payload()
+		else:
+			return msg.get_payload()
 
 	def getZipFiles(self, attachment, filename):
 		'''
