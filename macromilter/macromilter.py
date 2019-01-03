@@ -30,7 +30,7 @@
 ## 3.5.1 - 03.01.2018 sbidy - Fix for #31 #27 #29, some updates for the logging and umask
 ## 3.5.2 - 04.01.2018 sbidy - update the tempfile handling for more security and some other fixes, re-introduce the UMASK
 ## 3.5.3 - 06.02.2018 sbidy - implementing the macro whitelisting, update the config parsing to json
-## 3.6 - 03.01.2018 sbidy - fixing mutlible issues and bugs (#41, #38, #37, #35, #31, #30). Add MIME header for the diffent stages.
+## 3.6 - 03.01.2018 sbidy - fixing mutliple issues and bugs (#41, #38, #37, #35, #31, #30). Add MIME header for the different  stages.
 
 # The MIT License (MIT)
 
