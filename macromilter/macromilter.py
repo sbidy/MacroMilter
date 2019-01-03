@@ -301,9 +301,9 @@ class MacroMilter(Milter.Base):
 							self.addheader('X-MacroMilter-Status', 'Suspicious macro')
 							part.set_type('text/plain')
 							part.replace_header('Content-Transfer-Encoding', '7bit')
-							body = str(msg)
+							body = self.removeHader(msg)
 							self.message = io.BytesIO(body)
-							#self.replacebody(body)
+							self.replacebody(body)
 							log.info('[%d] Message relayed' % self.id)
 							return Milter.ACCEPT
 						else:
@@ -372,12 +372,28 @@ class MacroMilter(Milter.Base):
 			log.debug("[%d] Exception code: [%s]" % (self.id, exep))
 		
 		if newbody:
-			body = str(msg)
+			body = self.removeHader(msg)
 			self.message = io.BytesIO(body)
-			#self.replacebody(body)
+			self.replacebody(body)
 			log.info('[%d] Message relayed' % self.id)
 			result = Milter.ACCEPT
 		return result
+
+	def removeHader(self, msg):
+		'''
+			Removes the hader form the MIME mail to prevent a duplication. Retruns the raw body as string.
+		'''
+		body = str(msg)
+		for a,b in msg.items():
+			body = body.replace(a+": "+b+"\n","")
+		# remove the header from the body
+		tmp = ""
+		for lines in body.splitlines():
+			if lines.startswith("------MIME"):
+				break
+			else:
+				tmp += lines+"\n"
+		return body.replace(tmp,"")
 
 	def getZipFiles(self, attachment, filename):
 		'''
