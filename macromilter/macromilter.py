@@ -476,42 +476,44 @@ class MacroMilter(Milter.Base):
 		z = ZipFile(zfilename,'r')
 		# start walk
 		for info in z.infolist():
-			fname = info.filename
-			data = z.read(fname)
-			extn = (os.path.splitext(fname)[1]).lower()
+			# 35
+			is_encrypted = info.flag_bits & 0x1 
+			if not is_encrypted:
+				fname = info.filename
+				data = z.read(fname)
+				extn = (os.path.splitext(fname)[1]).lower()
 
-			# create a random secure temp file
-			tmp_fs, tmpfpath = tempfile.mkstemp(suffix=extn)
-			# add tmp filename to list
-			tmpfiles.append(tmpfpath)
+				# create a random secure temp file
+				tmp_fs, tmpfpath = tempfile.mkstemp(suffix=extn)
+				# add tmp filename to list
+				tmpfiles.append(tmpfpath)
 
-			if extn=='.zip' or extn=='.7z':
-				checkz=False
-				# use a context manager to open the file
-				with open(tmpfpath, 'w') as f:
-					f.write(data)
+				if extn=='.zip' or extn=='.7z':
+					checkz=False
+					# use a context manager to open the file
+					with open(tmpfpath, 'w') as f:
+						f.write(data)
 
-				if is_zipfile(tmpfpath):
-					checkz=True
-					count = count+1
-					# check each round
-					if count > MAX_ZIP:
-						self.deleteFileRecursive(tmpfiles)
-						tmpfiles = []
-						raise ToManyZipException("[%d] Too many nested zips found - possible zipbomb!" % self.id)
-				if checkz and not olefile.isOleFile(data):
-					try:
-						# recursive call if nested
-						for x in self.zipwalk(tmpfpath, count, tmpfiles):
-							yield x
-					except Exception:
-						self.deleteFileRecursive(tmpfiles)
-						tmpfiles = []
-						raise 
-			else:
-				# return the generator
-				yield (info, data)
-
+					if is_zipfile(tmpfpath):
+						checkz=True
+						count = count+1
+						# check each round
+						if count > MAX_ZIP:
+							self.deleteFileRecursive(tmpfiles)
+							tmpfiles = []
+							raise ToManyZipException("[%d] Too many nested zips found - possible zipbomb!" % self.id)
+					if checkz and not olefile.isOleFile(data):
+						try:
+							# recursive call if nested
+							for x in self.zipwalk(tmpfpath, count, tmpfiles):
+								yield x
+						except Exception:
+							self.deleteFileRecursive(tmpfiles)
+							tmpfiles = []
+							raise 
+				else:
+					# return the generator
+					yield (info, data)
 		# cleanup tmp
 		self.deleteFileRecursive(tmpfiles)
 		tmpfiles = []
