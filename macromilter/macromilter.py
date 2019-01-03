@@ -311,7 +311,7 @@ class MacroMilter(Milter.Base):
 
 					# check if this is a supported file type (if not, just skip it)
 					# TODO: this function should be provided by olevba
-					if not newbody and olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
+					if olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
 						or ('mime' in attachment_lowercase and 'version' in attachment_lowercase \
 						and 'multipart' in attachment_lowercase):
 						vba_code_all_modules = ''
@@ -385,6 +385,7 @@ class MacroMilter(Milter.Base):
 			for payload in msg.get_payload():
 				# if payload.is_multipart(): ...
 				message += payload.get_payload()
+			return message
 		else:
 			return msg.get_payload()
 
