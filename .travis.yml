@@ -63,6 +63,17 @@ jobs:
       - /bin/bash ./travis/tests_zip.sh
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
+  # encrypted zip
+  - stage: Testing
+    script:
+      - sudo cp ./travis/config_1.ini /etc/macromilter/config.ini
+      - sudo cat /etc/macromilter/config.ini
+      - sudo service MacroMilter restart
+      - sleep 10
+      - sudo service MacroMilter status
+      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -a ./test_mails/encrypted.zip -v
+      - sudo tail -n 100 /var/log/mail.log
+      - sudo tail -n 100 /home/travis/macromilter.log
   # Macro wihtelist
   - stage: Testing
     script:
