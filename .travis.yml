@@ -41,6 +41,7 @@ before_script:
 
 jobs:
   include:
+  # Default config
   - stage: Testing
     script:
       - sudo cp ./travis/config_1.ini /etc/macromilter/config.ini
@@ -51,6 +52,7 @@ jobs:
       - /bin/bash ./travis/tests.sh
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
+  # Zip test
   - stage: Testing
     script:
       - sudo cp ./travis/config_1.ini /etc/macromilter/config.ini
@@ -61,6 +63,7 @@ jobs:
       - /bin/bash ./travis/tests_zip.sh
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
+  # Macro wihtelist
   - stage: Testing
     script:
       - sudo cp ./travis/config_2.ini /etc/macromilter/config.ini
@@ -72,6 +75,7 @@ jobs:
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
       - sudo cat ./travis/mail.txt
+  # Reject no
   - stage: Testing
     script:
       - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
@@ -83,6 +87,20 @@ jobs:
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
       - sudo cat ./travis/mail.txt
+    # Reject no and blacklist
+  - stage: Testing
+    script:
+      - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
+      - sudo cat /etc/macromilter/config.ini
+      - sudo service MacroMilter restart
+      - sleep 10
+      - sudo service MacroMilter status
+      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
+      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
+      - sudo tail -n 100 /var/log/mail.log
+      - sudo tail -n 100 /home/travis/macromilter.log
+      - sudo cat ./travis/mail.txt
+  # Normal mail without attachment
   - stage: Testing
     script:
       - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
