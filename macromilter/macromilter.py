@@ -386,15 +386,15 @@ class MacroMilter(Milter.Base):
 		'''
 		body = str(msg)
 		for a,b in msg.items():
-			body = body.replace(a+": "+b+"\r\n","")
+			body = body.replace(a+": "+b+"\n","")
 		# remove the header from the body
-		tmp = ""
+		index  = 0
 		for lines in body.splitlines():
 			if lines.startswith("------MIME"):
 				break
 			else:
-				tmp += lines+"\r\n"
-		return body.replace(tmp,"")
+				index = index + 1
+		return '\r\n'.join(body.splitlines()[index:])
 
 	def getZipFiles(self, attachment, filename):
 		'''
