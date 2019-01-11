@@ -75,7 +75,7 @@ To allow a user or whole domain to send false-positive VAB-Macro-Mails, enter on
 
 ## Macro whitelist
 To allow only a special and wellknown macro code, add the SHA256 hash to the Macrohash part in the configuration file.
-You will find the raw macro hash in the macromilter log file `INFO [ID] The macro hash is: <the sha256 value>`. Please use only this one!
+You will find the raw macro hash in the macromilter log file `INFO [ID] The macro hash is: <the sha256 value>`. Please use only this one! Keep in mind, that the file hash has also to be deleted form the "hashdatabse".
 
 ## TBD
 * Config-File error handling
