@@ -1,4 +1,4 @@
-# Version 3.6 is as pre-release available
+# Version 3.6
 [![Build Status](https://travis-ci.com/sbidy/MacroMilter.svg?branch=master)](https://travis-ci.com/sbidy/MacroMilter)
 
 Changelog:
