@@ -444,10 +444,10 @@ class MacroMilter(Milter.Base):
 			# check if it is a list
 			for name in WhiteList:
 				if name not in (None, ''):
-					if name in msg_from:
+					if any(name in s for s in msg_from):
 						log.info("Whitelisted user %s - accept all attachments" % (msg_from))	
 						return True
-					if name in msg_to:
+					if any(name in s for s in msg_to):
 						log.info("Whitelisted user %s - accept all attachments" % (msg_to))
 						return True
 		return False
