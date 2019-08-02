@@ -73,7 +73,6 @@ import shutil
 import olefile
 import yaml
 
-from sets import Set
 from oletools import olevba, mraptor
 from Milter.utils import parse_addr
 from socket import AF_INET6
