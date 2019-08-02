@@ -88,6 +88,15 @@ CONFIG = os.path.join(os.path.dirname("/etc/macromilter/"),"config.yaml")
 if not os.path.isfile(CONFIG):
 	CONFIG = os.path.join(os.path.dirname(__file__),"config.yaml")
 
+
+def load_yaml(file, part):
+	'''
+		Load the YAML configuration file.
+	'''
+	with open(file, 'r') as ymlfile:
+		config_parameters = yaml.load(ymlfile, Loader=yaml.SafeLoader)[part]
+	return config_parameters
+
 # get the configuration items
 if os.path.isfile(CONFIG):
 	milter_parameters = load_yaml(CONFIG, "Milter")
@@ -112,6 +121,9 @@ else:
 
 LOGFILE_PATH = os.path.join(LOGFILE_DIR, LOGFILE_NAME)
 HASHTABLE_PATH = os.path.join(LOGFILE_DIR, "hashtable.db")
+
+# check if all config parameters are present
+if all(SOCKET, UMASK, TIMEOUT, MAX_FILESIZE, MESSAGE, MAX_ZIP, REJECT_MESSAGE, LOGFILE_DIR, LOGFILE_NAME, LOGLEVEL)
 
 # fallback if a file can't detect by the file magic
 EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm", ".rtf", ".mht", ".ppt"
