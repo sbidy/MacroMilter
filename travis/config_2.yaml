@@ -2,7 +2,7 @@
 Milter:
   # at postfix smtpd_milters: inet:127.0.0.1:3690
   # bind to unix or tcp socket "inet:port@ip" or "/<path>/<to>/<something>.sock"
-  SOCKET: inet:10025@127.0.0.1 
+  SOCKET: "inet:10025@127.0.0.1"
   # Set umask for unix socket, e.g. 0077 for group writable
   UMASK: 0077
   # Milter timout in seconds
@@ -10,15 +10,15 @@ Milter:
   # Define the max size for each message in bytes (~50MB)
   MAX_FILESIZE: 50000000
   # Reject error message
-  MESSAGE: ERROR - Attachment contains unallowed office macros!
+  MESSAGE: "ERROR - Attachment contains unallowed office macros!"
   # Reject the mail if a malware macro is detected (yes/no)
   REJECT_MESSAGE: yes
   # Max nested archive depth - recommendation: 5
   MAX_ZIP: 5
 
 Logging:
-  LOGFILE_DIR: /home/travis/
-  LOGFILE_NAME: macromilter.log
+  LOGFILE_DIR: "/home/travis/"
+  LOGFILE_NAME: "macromilter.log"
   # Loglevels are: 1: Debug (default) , 2: Info, 3: Warning/Error
   LOGLEVEL: 1
 

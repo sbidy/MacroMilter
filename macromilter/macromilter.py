@@ -123,7 +123,8 @@ LOGFILE_PATH = os.path.join(LOGFILE_DIR, LOGFILE_NAME)
 HASHTABLE_PATH = os.path.join(LOGFILE_DIR, "hashtable.db")
 
 # check if all config parameters are present
-if all(SOCKET, UMASK, TIMEOUT, MAX_FILESIZE, MESSAGE, MAX_ZIP, REJECT_MESSAGE, LOGFILE_DIR, LOGFILE_NAME, LOGLEVEL)
+if not all((SOCKET, UMASK, TIMEOUT, MAX_FILESIZE, MESSAGE, MAX_ZIP, REJECT_MESSAGE, LOGFILE_DIR, LOGFILE_NAME, LOGLEVEL)):
+	print("Please check the config file! Some parameters are missing. This is an YAML syntax file!")
 
 # fallback if a file can't detect by the file magic
 EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm", ".rtf", ".mht", ".ppt"
