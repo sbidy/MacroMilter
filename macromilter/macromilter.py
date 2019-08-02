@@ -175,9 +175,9 @@ class MacroMilter(Milter.Base):
 	@Milter.noreply
 	def envfrom(self, mailfrom, *str):
 		self.recipients = [] # list of recipients
-		self.messageToParse = io.StringIO()
+		self.messageToParse = io.BytesIO()
 		self.canon_from = '@'.join(parse_addr(mailfrom))
-		self.messageToParse.write('From %s %s\n' % (self.canon_from, time.ctime()))
+		self.messageToParse.write(('From %s %s\n' % (self.canon_from, time.ctime())).encode())
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -188,12 +188,12 @@ class MacroMilter(Milter.Base):
 
 	@Milter.noreply
 	def header(self, header_field, header_field_value):
-		self.messageToParse.write("%s: %s\n" % (header_field, header_field_value))
+		self.messageToParse.write(("%s: %s\n" % (header_field, header_field_value)).encode())
 		return Milter.CONTINUE
 
 	@Milter.noreply
 	def eoh(self):
-		self.messageToParse.write("\n")
+		self.messageToParse.write(("\n").encode())
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -217,7 +217,7 @@ class MacroMilter(Milter.Base):
 			# set data pointer back to 0
 			self.messageToParse.seek(0)
 			# use email from package email to parse the message string
-			msg = email.message_from_string(self.messageToParse.getvalue())
+			msg = email.message_from_bytes(self.messageToParse.getvalue())
 			# Set Reject Message - definition from here
 			# https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
 			self.setreply('550', '5.7.1', MESSAGE)
@@ -472,7 +472,7 @@ class MacroMilter(Milter.Base):
 
 		if Hash_Whitelist is not None:
 			for hash in Hash_Whitelist:
-				if name not in (None, ''):
+				if hash not in (None, ''):
 					if hash in vba_hash:
 						log.info("[%d] Whitelisted macro code %s - accept attachment" % (self.id, vba_hash))
 						return True
