@@ -1,5 +1,8 @@
 ## Update for 3.7 - this is a YAML file
-# please keep in mid that whitespace indentation is used for denoting structure; however, tab characters are not allowed.
+# please keep in mid that whitespace indentation is used for denoting structure;
+#
+# !!! TAB CHARACTER ARE NOT ALLOWED !!!
+#
 
 Milter:
   # at postfix smtpd_milters = inet:127.0.0.1:3690

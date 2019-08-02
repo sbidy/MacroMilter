@@ -532,7 +532,7 @@ class MacroMilter(Milter.Base):
 ## ==== start MAIN ========
 
 def load_yaml(file, part):
-    '''
+	'''
 		Load the YAML configuration file.
 	'''
 	with open(file, 'r') as ymlfile:
