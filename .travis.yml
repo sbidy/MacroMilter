@@ -1,7 +1,7 @@
 language: phyton
 
 python:
-  - "2.7"
+  - "3.6"
 
 before_install:
   - sudo apt-get update -qq
@@ -12,6 +12,7 @@ before_install:
   - sudo pip install configparser
   - sudo pip install olefile
   - sudo pip install email
+  - sudo pip install pyyaml
 
 before_script:
   - sudo service postfix stop
@@ -44,8 +45,8 @@ jobs:
   # Default config
   - stage: Testing
     script:
-      - sudo cp ./travis/config_1.ini /etc/macromilter/config.ini
-      - sudo cat /etc/macromilter/config.ini
+      - sudo cp ./travis/config_1.ini /etc/macromilter/config.yaml
+      - sudo cat /etc/macromilter/config.yaml
       - sudo service MacroMilter start
       - sleep 10
       - sudo service MacroMilter status
@@ -55,8 +56,8 @@ jobs:
   # Zip test
   - stage: Testing
     script:
-      - sudo cp ./travis/config_1.ini /etc/macromilter/config.ini
-      - sudo cat /etc/macromilter/config.ini
+      - sudo cp ./travis/config_1.ini /etc/macromilter/config.yaml
+      - sudo cat /etc/macromilter/config.yaml
       - sudo service MacroMilter restart
       - sleep 10
       - sudo service MacroMilter status
@@ -66,8 +67,8 @@ jobs:
   # encrypted zip
   - stage: Testing
     script:
-      - sudo cp ./travis/config_1.ini /etc/macromilter/config.ini
-      - sudo cat /etc/macromilter/config.ini
+      - sudo cp ./travis/config_1.ini /etc/macromilter/config.yaml
+      - sudo cat /etc/macromilter/config.yaml
       - sudo service MacroMilter restart
       - sleep 10
       - sudo service MacroMilter status
@@ -77,8 +78,8 @@ jobs:
   # Macro wihtelist
   - stage: Testing
     script:
-      - sudo cp ./travis/config_2.ini /etc/macromilter/config.ini
-      - sudo cat /etc/macromilter/config.ini
+      - sudo cp ./travis/config_2.ini /etc/macromilter/config.yaml
+      - sudo cat /etc/macromilter/config.yaml
       - sudo service MacroMilter restart
       - sleep 10
       - sudo service MacroMilter status
@@ -89,8 +90,8 @@ jobs:
   # Reject no
   - stage: Testing
     script:
-      - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
-      - sudo cat /etc/macromilter/config.ini
+      - sudo cp ./travis/config_3.ini /etc/macromilter/config.yaml
+      - sudo cat /etc/macromilter/config.yaml
       - sudo service MacroMilter restart
       - sleep 10
       - sudo service MacroMilter status
@@ -101,8 +102,8 @@ jobs:
     # Reject no and blacklist
   - stage: Testing
     script:
-      - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
-      - sudo cat /etc/macromilter/config.ini
+      - sudo cp ./travis/config_3.ini /etc/macromilter/config.yaml
+      - sudo cat /etc/macromilter/config.yaml
       - sudo service MacroMilter restart
       - sleep 10
       - sudo service MacroMilter status
@@ -114,8 +115,8 @@ jobs:
   # Normal mail without attachment
   - stage: Testing
     script:
-      - sudo cp ./travis/config_3.ini /etc/macromilter/config.ini
-      - sudo cat /etc/macromilter/config.ini
+      - sudo cp ./travis/config_3.ini /etc/macromilter/config.yaml
+      - sudo cat /etc/macromilter/config.yaml
       - sudo service MacroMilter restart
       - sleep 10
       - sudo service MacroMilter status

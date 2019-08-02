@@ -31,6 +31,7 @@
 ## 3.5.2 - 04.01.2018 sbidy - update the tempfile handling for more security and some other fixes, re-introduce the UMASK
 ## 3.5.3 - 06.02.2018 sbidy - implementing the macro whitelisting, update the config parsing to json
 ## 3.6 - 03.01.2018 sbidy - fixing mutliple issues and bugs (#41, #38, #37, #35, #31, #30). Add MIME header for the different  stages.
+## 3.7 - 02.08.2019 sbidy - Python3 update, config change to YAML, whitelist fix for "hash"
 
 # The MIT License (MIT)
 
@@ -55,7 +56,7 @@
 # SOFTWARE.
 
 import Milter
-import StringIO
+import io
 import time
 import email
 import sys
@@ -70,48 +71,42 @@ import traceback
 import tempfile
 import shutil
 import olefile
-import json
+import yaml
 
 from sets import Set
 from oletools import olevba, mraptor
 from Milter.utils import parse_addr
 from socket import AF_INET6
-from ConfigParser import SafeConfigParser
+#from configparser import SafeConfigParser
 from oletools.olevba import VBA_Parser
-
-
-# use backport if needed
-if sys.version_info[0] <= 2:
-	from zipfile import ZipFile, is_zipfile
-else:
-	# Python 3.x+
-	from zipfile import ZipFile, is_zipfile
+from zipfile import ZipFile, is_zipfile
 
 ## Config see ./config.ini
-__version__ = '3.6'  # version
+__version__ = '3.7'  # version
 
 # get the config from FHS conform dir (bug #13)
-CONFIG = os.path.join(os.path.dirname("/etc/macromilter/"),"config.ini")
+CONFIG = os.path.join(os.path.dirname("/etc/macromilter/"),"config.yaml")
 if not os.path.isfile(CONFIG):
-	CONFIG = os.path.join(os.path.dirname(__file__),"config.ini")
+	CONFIG = os.path.join(os.path.dirname(__file__),"config.yaml")
 
 # get the configuration items
 if os.path.isfile(CONFIG):
-	config = SafeConfigParser()
-	config.read(CONFIG)
-	SOCKET = config.get('Milter', 'SOCKET')
+	milter_parameters = load_yaml(CONFIG, "Milter")
+	SOCKET = milter_parameters['SOCKET']
 	try:
-		UMASK = int(config.get('Milter', 'UMASK'), base=0)
+		UMASK = int(milter_parameters['UMASK'], base=0)
 	except:
 		UMASK = 0o0077
-	TIMEOUT = config.getint('Milter', 'TIMEOUT')
-	MAX_FILESIZE = config.getint('Milter', 'MAX_FILESIZE')
-	MESSAGE = config.get('Milter', 'MESSAGE')
-	MAX_ZIP = config.getint('Milter', 'MAX_ZIP')
-	REJECT_MESSAGE = config.getboolean('Milter', 'REJECT_MESSAGE')
-	LOGFILE_DIR = config.get('Logging', 'LOGFILE_DIR')
-	LOGFILE_NAME = config.get('Logging', 'LOGFILE_NAME')
-	LOGLEVEL = config.getint('Logging', 'LOGLEVEL')
+	TIMEOUT = milter_parameters['TIMEOUT']
+	MAX_FILESIZE = milter_parameters['MAX_FILESIZE']
+	MESSAGE = milter_parameters['MESSAGE']
+	MAX_ZIP = milter_parameters['MAX_ZIP']
+	REJECT_MESSAGE =  milter_parameters['REJECT_MESSAGE']
+
+	logging_parameters = load_yaml(CONFIG, "Logging")
+	LOGFILE_DIR = logging_parameters['LOGFILE_DIR']
+	LOGFILE_NAME = logging_parameters['LOGFILE_NAME']
+	LOGLEVEL = logging_parameters['LOGLEVEL']
 else:
 	sys.exit("Please check the config file! Config path: %s" % CONFIG)
 # =============================================================================
@@ -168,7 +163,7 @@ class MacroMilter(Milter.Base):
 	@Milter.noreply
 	def envfrom(self, mailfrom, *str):
 		self.recipients = [] # list of recipients
-		self.messageToParse = StringIO.StringIO()
+		self.messageToParse = io.StringIO()
 		self.canon_from = '@'.join(parse_addr(mailfrom))
 		self.messageToParse.write('From %s %s\n' % (self.canon_from, time.ctime()))
 		return Milter.CONTINUE
@@ -293,7 +288,7 @@ class MacroMilter(Milter.Base):
 						return Milter.CONTINUE
 					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
 					attachment_lowercase = attachment.lower()
-					attachment_fileobj = StringIO.StringIO(attachment)
+					attachment_fileobj = io.StringIO(attachment)
 
 					# check if file was already parsed
 					if self.fileHasAlreadyBeenParsed(attachment):
@@ -408,13 +403,13 @@ class MacroMilter(Milter.Base):
 		'''
 		log.debug("[%d] Found attachment with archive extension - file name: %s" % (self.id, filename))
 		vba_code_all_modules = ''
-		file_object = StringIO.StringIO(attachment)
+		file_object = io.StringIO(attachment)
 		files_in_zip = self.zipwalk(file_object,0,[])
 			
 		for zip_name, zip_data in files_in_zip:
 			# checks if it is a file
 						
-			zip_mem_data = StringIO.StringIO(zip_data)
+			zip_mem_data = io.StringIO(zip_data)
 			name, ext = os.path.splitext(zip_name.filename)
 			# send to the VBA_Parser
 			# fallback with extensions - maybe removed in future releases
@@ -465,9 +460,10 @@ class MacroMilter(Milter.Base):
 
 		if Hash_Whitelist is not None:
 			for hash in Hash_Whitelist:
-				if hash in vba_hash:
-					log.info("[%d] Whitelisted macro code %s - accept attachment" % (self.id, vba_hash))
-					return True
+				if name not in (None, ''):
+					if hash in vba_hash:
+						log.info("[%d] Whitelisted macro code %s - accept attachment" % (self.id, vba_hash))
+						return True
 		return False
 
 	## === Support Functions ===
@@ -535,13 +531,22 @@ class MacroMilter(Milter.Base):
 
 ## ==== start MAIN ========
 
+def load_yaml(file, part):
+    '''
+		Load the YAML configuration file.
+	'''
+	with open(file, 'r') as ymlfile:
+		config_parameters = yaml.load(ymlfile)[part]
+	return config_parameters
+
 def WhiteListLoad():
 	'''
 		Function to load the data from the WhiteList file and load into memory
 	'''
 	global WhiteList, Hash_Whitelist
-	WhiteList = json.loads(config.get("Whitelist", "Recipients"))
-	Hash_Whitelist = json.loads(config.get("Whitelist", "Macrohash"))
+	whitelist_parameters = load_yaml(CONFIG, "Whitelist")
+	WhiteList = whitelist_parameters["Recipients"]
+	Hash_Whitelist = whitelist_parameters["Macrohash"]
 
 def HashTableLoad():
 	'''
@@ -591,15 +596,15 @@ def main():
 	Milter.set_flags(flags)  # tell Sendmail which features we use
 
 	# start milter processing
-	print("%s MacroMilter startup - Version %s" % (time.strftime('%Y-%m-%d %H:%M:%S'), __version__ ))
-	print('logging to file %s' % LOGFILE_PATH)
+	print(("%s MacroMilter startup - Version %s" % (time.strftime('%Y-%m-%d %H:%M:%S'), __version__ )))
+	print(('logging to file %s' % LOGFILE_PATH))
 
 	log.info('Starting MarcoMilter v%s - listening on %s' % (__version__, SOCKET))
 	log.debug('Python version: %s' % sys.version)
 	sys.stdout.flush()
 
 	# ensure desired permissions on unix socket
-	os.umask(UMASK);
+	os.umask(UMASK)
 
 	# set the "last" fall back to ACCEPT if exception occur
 	Milter.set_exception_policy(Milter.ACCEPT)
@@ -607,7 +612,7 @@ def main():
 	# start the milter
 	Milter.runmilter("MacroMilter", SOCKET, TIMEOUT)
 
-	print("%s MacroMilter shutdown" % time.strftime('%Y-%m-%d %H:%M:%S'))
+	print(("%s MacroMilter shutdown" % time.strftime('%Y-%m-%d %H:%M:%S')))
 
 if __name__ == "__main__":
 	main()
