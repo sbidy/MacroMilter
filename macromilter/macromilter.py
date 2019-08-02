@@ -543,14 +543,6 @@ class MacroMilter(Milter.Base):
 
 ## ==== start MAIN ========
 
-def load_yaml(file, part):
-	'''
-		Load the YAML configuration file.
-	'''
-	with open(file, 'r') as ymlfile:
-		config_parameters = yaml.load(ymlfile)[part]
-	return config_parameters
-
 def WhiteListLoad():
 	'''
 		Function to load the data from the WhiteList file and load into memory
