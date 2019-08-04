@@ -176,9 +176,10 @@ class MacroMilter(Milter.Base):
 	@Milter.noreply
 	def envfrom(self, mailfrom, *str):
 		self.recipients = [] # list of recipients
-		self.messageToParse = io.BytesIO()
+		self.messageToParse = io.StringIO()
 		self.canon_from = '@'.join(parse_addr(mailfrom))
-		self.messageToParse.write((b'From %s %s\n' % (self.canon_from, time.ctime())))
+		string = 'From %s %s\n' % (self.canon_from, time.ctime())
+		self.messageToParse.write(string.encode())
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -189,17 +190,17 @@ class MacroMilter(Milter.Base):
 
 	@Milter.noreply
 	def header(self, header_field, header_field_value):
-		self.messageToParse.write((b"%s: %s\n" % (header_field, header_field_value)))
+		self.messageToParse.write("%s: %s\n" % (header_field, header_field_value))
 		return Milter.CONTINUE
 
 	@Milter.noreply
 	def eoh(self):
-		self.messageToParse.write((b"\n"))
+		self.messageToParse.write("\n")
 		return Milter.CONTINUE
 
 	@Milter.noreply
 	def body(self, chunk):
-		self.messageToParse.write(chunk)
+		self.messageToParse.write(chunk.decode())
 		return Milter.CONTINUE
 
 	def close(self):
@@ -218,7 +219,7 @@ class MacroMilter(Milter.Base):
 			# set data pointer back to 0
 			self.messageToParse.seek(0)
 			# use email from package email to parse the message string
-			msg = email.message_from_file(self.messageToParse.getvalue())
+			msg = email.message_from_string(self.messageToParse.getvalue())
 			# Set Reject Message - definition from here
 			# https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
 			self.setreply('550', '5.7.1', MESSAGE)
