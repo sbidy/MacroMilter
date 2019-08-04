@@ -219,8 +219,7 @@ class MacroMilter(Milter.Base):
 			# set data pointer back to 0
 			self.messageToParse.seek(0)
 			# use email from package email to parse the message string
-			txt = self.messageToParse.read()
-			msg = email.message_from_string(txt)
+			msg = email.message_from_bytes(self.messageToParse.getvalue())
 			# Set Reject Message - definition from here
 			# https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
 			self.setreply('550', '5.7.1', MESSAGE)
@@ -302,7 +301,7 @@ class MacroMilter(Milter.Base):
 					if attachment is None and filename is None:
 						return Milter.CONTINUE
 					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
-					attachment_lowercase = attachment.decode.lower()
+					attachment_lowercase = attachment.lower()
 					attachment_fileobj = io.StringIO(attachment)
 
 					# check if file was already parsed
@@ -322,7 +321,7 @@ class MacroMilter(Milter.Base):
 
 					# check if this is a supported file type (if not, just skip it)
 					# TODO: this function should be provided by olevba
-					if olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment.decode() \
+					if olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
 						or ('mime' in attachment_lowercase and 'version' in attachment_lowercase \
 						and 'multipart' in attachment_lowercase):
 						vba_code_all_modules = ''
