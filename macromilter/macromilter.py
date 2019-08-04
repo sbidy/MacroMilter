@@ -176,9 +176,9 @@ class MacroMilter(Milter.Base):
 	@Milter.noreply
 	def envfrom(self, mailfrom, *str):
 		self.recipients = [] # list of recipients
-		self.messageToParse = io.StringIO()
+		self.messageToParse = io.BytesIO()
 		self.canon_from = '@'.join(parse_addr(mailfrom))
-		self.messageToParse.write(('From %s %s\n' % (self.canon_from, time.ctime())))
+		self.messageToParse.write((b'From %s %s\n' % (self.canon_from, time.ctime())))
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -189,12 +189,12 @@ class MacroMilter(Milter.Base):
 
 	@Milter.noreply
 	def header(self, header_field, header_field_value):
-		self.messageToParse.write(("%s: %s\n" % (header_field, header_field_value)))
+		self.messageToParse.write((b"%s: %s\n" % (header_field, header_field_value)))
 		return Milter.CONTINUE
 
 	@Milter.noreply
 	def eoh(self):
-		self.messageToParse.write(("\n"))
+		self.messageToParse.write((b"\n"))
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -311,7 +311,7 @@ class MacroMilter(Milter.Base):
 							part.set_type('text/plain')
 							part.replace_header('Content-Transfer-Encoding', '7bit')
 							body = self.removeHader(msg)
-							self.message = io.BytesIO(body)
+							self.message = io.StringIO(body)
 							self.replacebody(body)
 							log.info('[%d] Message relayed' % self.id)
 							return Milter.ACCEPT
@@ -416,13 +416,13 @@ class MacroMilter(Milter.Base):
 		'''
 		log.debug("[%d] Found attachment with archive extension - file name: %s" % (self.id, filename))
 		vba_code_all_modules = ''
-		file_object = io.StringIO(attachment)
+		file_object = io.BytesIO(attachment)
 		files_in_zip = self.zipwalk(file_object,0,[])
 			
 		for zip_name, zip_data in files_in_zip:
 			# checks if it is a file
 						
-			zip_mem_data = io.StringIO(zip_data)
+			zip_mem_data = io.BytesIO(zip_data)
 			name, ext = os.path.splitext(zip_name.filename)
 			# send to the VBA_Parser
 			# fallback with extensions - maybe removed in future releases
