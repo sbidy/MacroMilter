@@ -72,6 +72,7 @@ import tempfile
 import shutil
 import olefile
 import yaml
+import codecs
 
 from oletools import olevba, mraptor
 from Milter.utils import parse_addr
@@ -178,7 +179,7 @@ class MacroMilter(Milter.Base):
 		self.recipients = [] # list of recipients
 		self.messageToParse = io.BytesIO()
 		self.canon_from = '@'.join(parse_addr(mailfrom))
-		self.messageToParse.write(b'From %s %s\n' % (codecs.encode(self.canon_from, 'utf-8'), codecs.encode(time.ctime(), 'utf-8')))
+		self.messageToParse.write(b'From %s %s\n' % (codecs.encode(self.canon_from, encoding='utf-8'), codecs.encode(time.ctime(), encoding='utf-8')))
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -189,7 +190,7 @@ class MacroMilter(Milter.Base):
 
 	@Milter.noreply
 	def header(self, header_field, header_field_value):
-		self.messageToParse.write("%s: %s\n" % (header_field, header_field_value))
+		self.messageToParse.write(b"%s: %s\n" % (codecs.encode(header_field, encoding='utf-8'), codecs.encode(header_field_value,encoding='utf-8')))
 		return Milter.CONTINUE
 
 	@Milter.noreply
