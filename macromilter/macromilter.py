@@ -176,10 +176,9 @@ class MacroMilter(Milter.Base):
 	@Milter.noreply
 	def envfrom(self, mailfrom, *str):
 		self.recipients = [] # list of recipients
-		self.messageToParse = io.StringIO()
+		self.messageToParse = io.BytesIO()
 		self.canon_from = '@'.join(parse_addr(mailfrom))
-		string = 'From %s %s\n' % (self.canon_from, time.ctime())
-		self.messageToParse.write(string.encode())
+		self.messageToParse.write(b'From %s %s\n' % (codecs.encode(self.canon_from, 'utf-8'), codecs.encode(time.ctime(), 'utf-8')))
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -195,12 +194,12 @@ class MacroMilter(Milter.Base):
 
 	@Milter.noreply
 	def eoh(self):
-		self.messageToParse.write("\n")
+		self.messageToParse.write(b"\n")
 		return Milter.CONTINUE
 
 	@Milter.noreply
 	def body(self, chunk):
-		self.messageToParse.write(chunk.decode())
+		self.messageToParse.write(chunk)
 		return Milter.CONTINUE
 
 	def close(self):
@@ -219,7 +218,8 @@ class MacroMilter(Milter.Base):
 			# set data pointer back to 0
 			self.messageToParse.seek(0)
 			# use email from package email to parse the message string
-			msg = email.message_from_string(self.messageToParse.getvalue())
+			txt = self.messageToParse.read()
+			msg = email.message_from_string(txt)
 			# Set Reject Message - definition from here
 			# https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
 			self.setreply('550', '5.7.1', MESSAGE)
@@ -301,7 +301,7 @@ class MacroMilter(Milter.Base):
 					if attachment is None and filename is None:
 						return Milter.CONTINUE
 					log.debug('[%d] Analyzing attachment: %r' % (self.id, filename))
-					attachment_lowercase = attachment.lower()
+					attachment_lowercase = attachment.decode.lower()
 					attachment_fileobj = io.StringIO(attachment)
 
 					# check if file was already parsed
@@ -321,7 +321,7 @@ class MacroMilter(Milter.Base):
 
 					# check if this is a supported file type (if not, just skip it)
 					# TODO: this function should be provided by olevba
-					if olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
+					if olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment.decode() \
 						or ('mime' in attachment_lowercase and 'version' in attachment_lowercase \
 						and 'multipart' in attachment_lowercase):
 						vba_code_all_modules = ''
