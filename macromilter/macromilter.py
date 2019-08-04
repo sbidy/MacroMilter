@@ -76,7 +76,7 @@ import yaml
 from oletools import olevba, mraptor
 from Milter.utils import parse_addr
 from socket import AF_INET6
-#from configparser import SafeConfigParser
+
 from oletools.olevba import VBA_Parser
 from zipfile import ZipFile, is_zipfile
 
@@ -145,7 +145,8 @@ class TooManyZipException(Exception):
 ## Customized milter class - partly copied from
 ## https://github.com/jmehnle/pymilter/blob/master/milter-template.py
 class MacroMilter(Milter.Base):
-	'''Base class for MacroMilter to move boilerplate connection stuff away from the real
+	''' 
+		Base class for MacroMilter to move boilerplate connection stuff away from the real
 		business logic for macro parsing
 	'''
 	def __init__(self):  # A new instance with each new connection.
@@ -175,9 +176,9 @@ class MacroMilter(Milter.Base):
 	@Milter.noreply
 	def envfrom(self, mailfrom, *str):
 		self.recipients = [] # list of recipients
-		self.messageToParse = io.BytesIO()
+		self.messageToParse = io.StringIO()
 		self.canon_from = '@'.join(parse_addr(mailfrom))
-		self.messageToParse.write(('From %s %s\n' % (self.canon_from, time.ctime())).encode())
+		self.messageToParse.write(('From %s %s\n' % (self.canon_from, time.ctime())))
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -188,12 +189,12 @@ class MacroMilter(Milter.Base):
 
 	@Milter.noreply
 	def header(self, header_field, header_field_value):
-		self.messageToParse.write(("%s: %s\n" % (header_field, header_field_value)).encode())
+		self.messageToParse.write(("%s: %s\n" % (header_field, header_field_value)))
 		return Milter.CONTINUE
 
 	@Milter.noreply
 	def eoh(self):
-		self.messageToParse.write(("\n").encode())
+		self.messageToParse.write(("\n"))
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -217,7 +218,7 @@ class MacroMilter(Milter.Base):
 			# set data pointer back to 0
 			self.messageToParse.seek(0)
 			# use email from package email to parse the message string
-			msg = email.message_from_bytes(self.messageToParse.getvalue())
+			msg = email.message_from_file(self.messageToParse.getvalue())
 			# Set Reject Message - definition from here
 			# https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
 			self.setreply('550', '5.7.1', MESSAGE)
@@ -385,7 +386,7 @@ class MacroMilter(Milter.Base):
 		
 		if newbody:
 			body = self.removeHader(msg)
-			self.message = io.BytesIO(body)
+			self.message = io.StringIO(body)
 			self.replacebody(body)
 			log.info('[%d] Message relayed' % self.id)
 			result = Milter.ACCEPT
