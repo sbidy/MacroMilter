@@ -553,8 +553,8 @@ class MacroMilter(Milter.Base):
 	def writeBodyDump(self, msg):
 		try:
 			dumpname = time.strftime("%Y%m%d-%H%M%S")
-			dumpname = dumpname+"_"+self.id
-			dumpfile = os.path.join(LOGFILE_DIR, "Dump_"+dumpname)
+			dumpname = "Dump_"+dumpname+"_"+self.id
+			dumpfile = os.path.join(LOGFILE_DIR, dumpname)
 			with open(dumpfile, 'w') as f:
 				f.write(str(msg))
 			f.close()
