@@ -31,10 +31,11 @@
 ## 3.5.2 - 04.01.2018 sbidy - update the tempfile handling for more security and some other fixes, re-introduce the UMASK
 ## 3.5.3 - 06.02.2018 sbidy - implementing the macro whitelisting, update the config parsing to json
 ## 3.6 - 03.01.2018 sbidy - fixing mutliple issues and bugs (#41, #38, #37, #35, #31, #30). Add MIME header for the different  stages.
+## 3.6.1 - 25.09.2019 sbidy - update and fixing filehandle exception in tempfile. Added config function to dump the mail body to file (DUMP_BODY)
 
 # The MIT License (MIT)
 
-# Copyright (c) 2016 Stephan Traub - audius GmbH, www.audius.de
+# Copyright (c) 2019 Stephan Traub - audius GmbH, www.audius.de
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -88,7 +89,7 @@ else:
 	from zipfile import ZipFile, is_zipfile
 
 ## Config see ./config.ini
-__version__ = '3.6'  # version
+__version__ = '3.6.1'  # version
 
 # get the config from FHS conform dir (bug #13)
 CONFIG = os.path.join(os.path.dirname("/etc/macromilter/"),"config.ini")
@@ -112,12 +113,17 @@ if os.path.isfile(CONFIG):
 	LOGFILE_DIR = config.get('Logging', 'LOGFILE_DIR')
 	LOGFILE_NAME = config.get('Logging', 'LOGFILE_NAME')
 	LOGLEVEL = config.getint('Logging', 'LOGLEVEL')
+	DUMP_BODY = config.getboolean('Milter', 'DUMP_BODY')
 else:
 	sys.exit("Please check the config file! Config path: %s" % CONFIG)
 # =============================================================================
 
 LOGFILE_PATH = os.path.join(LOGFILE_DIR, LOGFILE_NAME)
 HASHTABLE_PATH = os.path.join(LOGFILE_DIR, "hashtable.db")
+
+# Config check
+if DUMP_BODY is None:
+	DUMP_BODY = False
 
 # fallback if a file can't detect by the file magic
 EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm", ".rtf", ".mht", ".ppt"
@@ -226,7 +232,7 @@ class MacroMilter(Milter.Base):
 			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 			log.error("Unexpected error - fall back to ACCEPT: %s %s %s" % (exc_type, fname, exc_tb.tb_lineno))
 			self.addheader('X-MacroMilter-Status', 'Unchecked')
-			return Milter.ACCEPT
+			return Milter.CONTINUE
 
 	## ==== Data processing ====
 
@@ -308,6 +314,8 @@ class MacroMilter(Milter.Base):
 							log.info('[%d] Message relayed' % self.id)
 							return Milter.ACCEPT
 						else:
+							if DUMP_BODY:
+								self.writeBodyDump(msg)
 							return Milter.REJECT
 
 					# check if this is a supported file type (if not, just skip it)
@@ -359,6 +367,8 @@ class MacroMilter(Milter.Base):
 								log.warning('[%d] The attachment %r contains a suspicious macro: REJECT' % (self.id, filename))
 								self.addheader('X-MacroMilter-Status', 'Suspicious macro')
 								result = Milter.REJECT
+								if DUMP_BODY:
+									self.writeBodyDump(msg)
 							else:
 								log.warning('[%d] The attachment %r contains a suspicious macro: replace it with a text file' % (self.id, filename))
 								self.addheader('X-MacroMilter-Status', 'Suspicious macro')
@@ -491,12 +501,14 @@ class MacroMilter(Milter.Base):
 				tmp_fs, tmpfpath = tempfile.mkstemp(suffix=extn)
 				# add tmp filename to list
 				tmpfiles.append(tmpfpath)
-
+				
 				if extn=='.zip' or extn=='.7z':
 					checkz=False
-					# use a context manager to open the file
-					with open(tmpfpath, 'w') as f:
-						f.write(data)
+					# use the file descriptor to write to the file
+					tmpfile = os.fdopen(tmp_fs, "w")
+					tmpfile.write(data)
+					# Close the file to avoid the open file exception
+					tmpfile.close()
 
 					if is_zipfile(tmpfpath):
 						checkz=True
@@ -522,6 +534,9 @@ class MacroMilter(Milter.Base):
 		self.deleteFileRecursive(tmpfiles)
 		tmpfiles = []
 
+	'''
+		Delete the files recursive from the tmp folder
+	'''
 	def deleteFileRecursive(self, filelist):
 		for sfile in filelist:
 			try:
@@ -530,6 +545,21 @@ class MacroMilter(Milter.Base):
 			except OSError:
 				pass
 
+	'''
+		Write the dump of the mail body to the logging folder
+	'''
+	def writeBodyDump(self, msg):
+		try:
+			dumpname = time.strftime("%Y%m%d-%H%M%S")
+			if msg['message-id'] is not "":
+				dumpname = dumpname+"_"+msg['message-id'][1:-1]
+			dumpfile = os.path.join(LOGFILE_DIR, "Dump_"+dumpname)
+			with open(dumpfile, 'w') as f:
+				f.write(str(msg))
+			f.close()
+			log.info("Body dump written in %s" % dumpfile)
+		except Exception:
+				log.error("Cant write body dump")
 
 ## ===== END CLASS ========
 
@@ -599,7 +629,7 @@ def main():
 	sys.stdout.flush()
 
 	# ensure desired permissions on unix socket
-	os.umask(UMASK);
+	os.umask(UMASK)
 
 	# set the "last" fall back to ACCEPT if exception occur
 	Milter.set_exception_policy(Milter.ACCEPT)
