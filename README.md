@@ -1,7 +1,11 @@
-# Version 3.6
+# Version 3.6.1
 [![Build Status](https://travis-ci.com/sbidy/MacroMilter.svg?branch=master)](https://travis-ci.com/sbidy/MacroMilter)
 
-Changelog:
+Changelog 3.6.1:
+ - Fix for tmp filehandle error
+ - Add new config option for dumping the mail body for forensics 
+
+Changelog 3.6:
  - fixing multiple issues and bugs (#41 , #38, #37, #35, #31, #30)
  - Add MIME header for the different stages.
  - The hash db is updated to SHA256 instead of MD5. Old MD5 hashes still supported.
