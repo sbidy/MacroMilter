@@ -82,7 +82,7 @@ jobs:
       - sudo service MacroMilter restart
       - sleep 10
       - sudo service MacroMilter status
-      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
+      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -a ./test_mails/Test_Dock_Block.doc -v
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
       - sudo cat ./travis/mail.txt
@@ -94,7 +94,7 @@ jobs:
       - sudo service MacroMilter restart
       - sleep 10
       - sudo service MacroMilter status
-      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
+      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -a ./test_mails/Test_Dock_Block.doc -v
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
       - sudo cat ./travis/mail.txt
@@ -106,8 +106,8 @@ jobs:
       - sudo service MacroMilter restart
       - sleep 10
       - sudo service MacroMilter status
-      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
-      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -a ./test_mails/Dok1.doc -v
+      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -a ./test_mails/Test_Dock_Block.doc -v
+      - sendemail -f travis@localhost -t test@localhost -m "test" -s localhost -u "test" -a ./test_mails/Test_Dock_Block.doc -v
       - sudo tail -n 100 /var/log/mail.log
       - sudo tail -n 100 /home/travis/macromilter.log
       - sudo cat ./travis/mail.txt
