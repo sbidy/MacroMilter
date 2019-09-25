@@ -528,6 +528,8 @@ class MacroMilter(Milter.Base):
 							tmpfiles = []
 							raise 
 				else:
+					# close filehandler if not used
+					os.close(tmp_fs)
 					# return the generator
 					yield (info, data)
 		# cleanup tmp
