@@ -31,11 +31,12 @@
 ## 3.5.2 - 04.01.2018 sbidy - update the tempfile handling for more security and some other fixes, re-introduce the UMASK
 ## 3.5.3 - 06.02.2018 sbidy - implementing the macro whitelisting, update the config parsing to json
 ## 3.6 - 03.01.2018 sbidy - fixing mutliple issues and bugs (#41, #38, #37, #35, #31, #30). Add MIME header for the different  stages.
+## 3.6.1 - 25.09.2019 sbidy - update and fixing filehandle exception in tempfile. Added config function to dump the mail body to file (DUMP_BODY)
 ## 3.7 - 02.08.2019 sbidy - Python3 update, config change to YAML, whitelist fix for "hash"
 
 # The MIT License (MIT)
 
-# Copyright (c) 2016 Stephan Traub - audius GmbH, www.audius.de
+# Copyright (c) 2019 Stephan Traub - audius GmbH, www.audius.de
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -111,11 +112,13 @@ if os.path.isfile(CONFIG):
 	MESSAGE = milter_parameters['MESSAGE']
 	MAX_ZIP = milter_parameters['MAX_ZIP']
 	REJECT_MESSAGE =  milter_parameters['REJECT_MESSAGE']
+	DUMP_BODY = milter_parameters['DUMP_BODY']
 
 	logging_parameters = load_yaml(CONFIG, "Logging")
 	LOGFILE_DIR = logging_parameters['LOGFILE_DIR']
 	LOGFILE_NAME = logging_parameters['LOGFILE_NAME']
 	LOGLEVEL = logging_parameters['LOGLEVEL']
+	
 else:
 	sys.exit("Please check the config file! Config path: %s" % CONFIG)
 # =============================================================================
@@ -125,7 +128,7 @@ HASHTABLE_PATH = os.path.join(LOGFILE_DIR, "hashtable.db")
 
 # check if all config parameters are present
 if not all((SOCKET, UMASK, TIMEOUT, MAX_FILESIZE, MESSAGE, MAX_ZIP, REJECT_MESSAGE, LOGFILE_DIR, LOGFILE_NAME, LOGLEVEL)):
-	print("Please check the config file! Some parameters are missing. This is an YAML syntax file!")
+	sys.exit("Please check the config file! Some parameters are missing. This is an YAML syntax file!")
 
 # fallback if a file can't detect by the file magic
 EXTENSIONS = ".dot",".doc",".xls",".docm",".dotm",".xlsm",".xlsb",".pptm", ".ppsm", ".rtf", ".mht", ".ppt"
@@ -196,6 +199,8 @@ class MacroMilter(Milter.Base):
 	@Milter.noreply
 	def eoh(self):
 		self.messageToParse.write(b"\n")
+		self.messageToParse.seek(0)
+		self.messageToParse.close()
 		return Milter.CONTINUE
 
 	@Milter.noreply
@@ -219,7 +224,7 @@ class MacroMilter(Milter.Base):
 			# set data pointer back to 0
 			self.messageToParse.seek(0)
 			# use email from package email to parse the message string
-			msg = email.message_from_bytes(self.messageToParse.getvalue())
+			msg = email.message_from_file(self.messageToParse.getvalue())
 			# Set Reject Message - definition from here
 			# https://www.iana.org/assignments/smtp-enhanced-status-codes/smtp-enhanced-status-codes.xhtml
 			self.setreply('550', '5.7.1', MESSAGE)
@@ -312,11 +317,13 @@ class MacroMilter(Milter.Base):
 							part.set_type('text/plain')
 							part.replace_header('Content-Transfer-Encoding', '7bit')
 							body = self.removeHader(msg)
-							self.message = io.StringIO(body)
+							self.message = io.BytesIO(body)
 							self.replacebody(body)
 							log.info('[%d] Message relayed' % self.id)
 							return Milter.ACCEPT
 						else:
+							if DUMP_BODY:
+								self.writeBodyDump(msg)
 							return Milter.REJECT
 
 					# check if this is a supported file type (if not, just skip it)
@@ -368,6 +375,8 @@ class MacroMilter(Milter.Base):
 								log.warning('[%d] The attachment %r contains a suspicious macro: REJECT' % (self.id, filename))
 								self.addheader('X-MacroMilter-Status', 'Suspicious macro')
 								result = Milter.REJECT
+								if DUMP_BODY:
+									self.writeBodyDump(msg)
 							else:
 								log.warning('[%d] The attachment %r contains a suspicious macro: replace it with a text file' % (self.id, filename))
 								self.addheader('X-MacroMilter-Status', 'Suspicious macro')
@@ -504,9 +513,11 @@ class MacroMilter(Milter.Base):
 
 				if extn=='.zip' or extn=='.7z':
 					checkz=False
-					# use a context manager to open the file
-					with open(tmpfpath, 'w') as f:
-						f.write(data)
+					# use the file descriptor to write to the file
+					tmpfile = os.fdopen(tmp_fs, "w")
+					tmpfile.write(data)
+					# Close the file to avoid the open file exception
+					tmpfile.close()
 
 					if is_zipfile(tmpfpath):
 						checkz=True
@@ -526,6 +537,8 @@ class MacroMilter(Milter.Base):
 							tmpfiles = []
 							raise 
 				else:
+					# close filehandler if not used
+					os.close(tmp_fs)
 					# return the generator
 					yield (info, data)
 		# cleanup tmp
@@ -536,11 +549,25 @@ class MacroMilter(Milter.Base):
 		for sfile in filelist:
 			try:
 				os.remove(sfile)
+				os.close(sfile)
 				log.debug("[%d] File %s removed from tmp folder" % (self.id, sfile))
 			except OSError:
 				pass
 
-
+	'''
+		Write the dump of the mail body to the logging folder
+	'''
+	def writeBodyDump(self, msg):
+		try:
+			dumpname = time.strftime("%Y%m%d-%H%M%S")
+			dumpname = "Dump_"+dumpname+"_"+str(self.id)
+			dumpfile = os.path.join(LOGFILE_DIR, dumpname)
+			with open(dumpfile, 'w') as f:
+				f.write(str(msg))
+			f.close()
+			log.info("Body dump written in %s" % dumpfile)
+		except Exception:
+				log.error("Cant write body dump")
 ## ===== END CLASS ========
 
 ## ==== start MAIN ========

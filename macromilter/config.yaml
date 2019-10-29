@@ -20,6 +20,8 @@ Milter:
   REJECT_MESSAGE: yes
   # Max nested archive depth - recommendation = 5
   MAX_ZIP: 5
+  # Dump the mail body to file (yes/no)
+  DUMP_BODY: no
 
 Logging:
   LOGFILE_DIR: "/var/log/macromilter"
