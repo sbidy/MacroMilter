@@ -1,10 +1,9 @@
-# Version 3.6
+# Version 3.7
 [![Build Status](https://travis-ci.com/sbidy/MacroMilter.svg?branch=master)](https://travis-ci.com/sbidy/MacroMilter)
 
 Changelog:
- - fixing multiple issues and bugs (#41 , #38, #37, #35, #31, #30)
- - Add MIME header for the different stages.
- - The hash db is updated to SHA256 instead of MD5. Old MD5 hashes still supported.
+ - Update config to yaml file
+ - Python 3 ready
 
 ## Contributing
 I need some code review and help to make this milter better! If you find some bugs or the code is "creepy" -> feel free to contribute :)
