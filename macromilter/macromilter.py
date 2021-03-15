@@ -308,11 +308,7 @@ class MacroMilter(Milter.Base):
 							self.addheader('X-MacroMilter-Status', 'Suspicious macro')
 							part.set_type('text/plain')
 							part.replace_header('Content-Transfer-Encoding', '7bit')
-							body = self.removeHader(msg)
-							self.message = io.BytesIO(body)
-							self.replacebody(body)
-							log.info('[%d] Message relayed' % self.id)
-							return Milter.ACCEPT
+							newbody = True
 						else:
 							if DUMP_BODY:
 								self.writeBodyDump(msg)
@@ -320,7 +316,7 @@ class MacroMilter(Milter.Base):
 
 					# check if this is a supported file type (if not, just skip it)
 					# TODO: this function should be provided by olevba
-					if olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
+					elif olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
 						or ('mime' in attachment_lowercase and 'version' in attachment_lowercase \
 						and 'multipart' in attachment_lowercase):
 						vba_code_all_modules = ''
@@ -353,7 +349,7 @@ class MacroMilter(Milter.Base):
 								# macro code is in whitelist
 								self.removeHashFromDB(attachment)
 								self.addheader('X-MacroMilter-Status', 'Whitelisted')
-								return Milter.ACCEPT
+								continue
 
 						# run the mraptor
 						m = mraptor.MacroRaptor(vba_code_all_modules)
