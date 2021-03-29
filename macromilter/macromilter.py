@@ -303,24 +303,20 @@ class MacroMilter(Milter.Base):
 
 					# check if file was already parsed
 					if self.fileHasAlreadyBeenParsed(attachment):
+						if DUMP_BODY and not newbody:
+							self.writeBodyDump(msg)
 						if REJECT_MESSAGE is False:
 							part.set_payload('This attachment has been removed because it contains a suspicious macro.')
 							self.addheader('X-MacroMilter-Status', 'Suspicious macro')
 							part.set_type('text/plain')
 							part.replace_header('Content-Transfer-Encoding', '7bit')
-							body = self.removeHader(msg)
-							self.message = io.BytesIO(body)
-							self.replacebody(body)
-							log.info('[%d] Message relayed' % self.id)
-							return Milter.ACCEPT
+							newbody = True
 						else:
-							if DUMP_BODY:
-								self.writeBodyDump(msg)
 							return Milter.REJECT
 
 					# check if this is a supported file type (if not, just skip it)
 					# TODO: this function should be provided by olevba
-					if olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
+					elif olefile.isOleFile(attachment_fileobj) or is_zipfile(attachment_fileobj) or 'http://schemas.microsoft.com/office/word/2003/wordml' in attachment \
 						or ('mime' in attachment_lowercase and 'version' in attachment_lowercase \
 						and 'multipart' in attachment_lowercase):
 						vba_code_all_modules = ''
@@ -353,7 +349,7 @@ class MacroMilter(Milter.Base):
 								# macro code is in whitelist
 								self.removeHashFromDB(attachment)
 								self.addheader('X-MacroMilter-Status', 'Whitelisted')
-								return Milter.ACCEPT
+								continue
 
 						# run the mraptor
 						m = mraptor.MacroRaptor(vba_code_all_modules)
@@ -363,12 +359,12 @@ class MacroMilter(Milter.Base):
 							# Add sha256 to the database
 							self.addHashtoDB(attachment)
 							# Replace the attachment or reject it
+							if DUMP_BODY and not newbody:
+								self.writeBodyDump(msg)
 							if REJECT_MESSAGE:
 								log.warning('[%d] The attachment %r contains a suspicious macro: REJECT' % (self.id, filename))
 								self.addheader('X-MacroMilter-Status', 'Suspicious macro')
-								result = Milter.REJECT
-								if DUMP_BODY:
-									self.writeBodyDump(msg)
+								return Milter.REJECT
 							else:
 								log.warning('[%d] The attachment %r contains a suspicious macro: replace it with a text file' % (self.id, filename))
 								self.addheader('X-MacroMilter-Status', 'Suspicious macro')
